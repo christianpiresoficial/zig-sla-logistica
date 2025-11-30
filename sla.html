@@ -1,0 +1,4256 @@
+<!DOCTYPE html>
+<html lang="pt-br" data-theme="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>ZIG — Painel de SLA · Logística CX</title>
+
+  <!-- XLSX para ler a planilha -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <!-- Chart.js para as curvas/gráficos -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+  <style>
+    :root {
+      --bg: #050712;
+      --bg-elevated: rgba(13, 17, 32, 0.95);
+      --card: rgba(16, 22, 44, 0.95);
+      --border: rgba(93, 111, 170, 0.4);
+      --accent: #5d5fef;
+      --accent-soft: rgba(93, 95, 239, .12);
+      --accent-strong: #ffb547;
+      --text: #f4f6ff;
+      --muted: #a5b0d6;
+      --danger: #ff5c7a;
+      --success: #46d39a;
+      --warning: #ffb547;
+      --radius: 18px;
+      --radius-sm: 12px;
+      --shadow: 0 18px 45px rgba(0, 0, 0, .65);
+      --transition: 0.18s ease-out;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+        "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #141b3a 0, #050712 50%, #02030a 100%);
+      color: var(--text);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .app-shell {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    header.app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px 18px;
+      background: linear-gradient(120deg, rgba(15, 20, 48, 0.95), rgba(13, 22, 60, 0.95));
+      border-radius: 999px;
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      position: sticky;
+      top: 8px;
+      z-index: 20;
+      backdrop-filter: blur(22px);
+    }
+
+    .app-title { display: flex; flex-direction: column; gap: 2px; }
+
+    .app-title h1 {
+      font-size: 18px;
+      margin: 0;
+      letter-spacing: 0.02em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .badge {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .16em;
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, .2);
+      background: linear-gradient(120deg, rgba(255, 255, 255, .08), transparent);
+      color: var(--muted);
+    }
+
+    .app-title span.subtitle { font-size: 12px; color: var(--muted); }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    button.chip {
+      border-radius: 999px;
+      padding: 6px 10px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(6, 9, 24, 0.85);
+      color: var(--muted);
+      font-size: 11px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 6px; height: 6px;
+      border-radius: 999px;
+      background: var(--accent);
+      box-shadow: 0 0 0 4px rgba(93, 95, 239, 0.24);
+    }
+
+    .btn-primary,
+    .btn-ghost {
+      border-radius: 999px;
+      padding: 8px 14px;
+      border: 1px solid transparent;
+      font-size: 13px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      transition: transform var(--transition), box-shadow var(--transition),
+        background var(--transition), border-color var(--transition);
+      white-space: nowrap;
+    }
+
+    .btn-primary {
+      background: radial-gradient(circle at top left, #7e80ff, #4b4dcc);
+      border-color: rgba(255, 255, 255, 0.18);
+      color: #fff;
+      box-shadow: 0 12px 30px rgba(43, 53, 139, .8);
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 16px 40px rgba(43, 53, 139, 1);
+    }
+
+    .btn-ghost {
+      background: rgba(4, 7, 20, .9);
+      border-color: rgba(118, 137, 212, 0.5);
+      color: var(--muted);
+    }
+
+    .btn-ghost:hover {
+      background: rgba(17, 22, 48, 0.9);
+      border-color: rgba(153, 174, 245, 0.8);
+    }
+
+    .icon { font-size: 16px; line-height: 1; }
+
+    main.app-main { display: flex; flex-direction: column; gap: 16px; }
+
+    .grid { display: grid; gap: 14px; }
+    .grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    .grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+    @media (max-width: 1100px) {
+      .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      header.app-header {
+        flex-direction: column;
+        align-items: flex-start;
+        border-radius: 18px;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .grid-4, .grid-2 { grid-template-columns: minmax(0, 1fr); }
+    }
+
+    .card {
+      background: radial-gradient(circle at top left, rgba(35, 43, 90, .55), rgba(9, 11, 26, .97));
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .card-title {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: .18em;
+      color: var(--muted);
+    }
+
+    .card-caption { font-size: 11px; color: var(--muted); }
+
+    .metric-value {
+      font-size: 24px;
+      font-weight: 600;
+      margin: 4px 0 2px;
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+    }
+
+    .metric-sub { font-size: 11px; color: var(--muted); }
+
+    .pill {
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .14em;
+      border: 1px solid rgba(255, 255, 255, .12);
+      background: rgba(2, 4, 14, .7);
+      color: var(--muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .pill.success {
+      border-color: rgba(70, 211, 154, .8);
+      color: var(--success);
+      background: rgba(33, 83, 63, .12);
+    }
+
+    .pill.danger {
+      border-color: rgba(255, 92, 122, .85);
+      color: var(--danger);
+      background: rgba(97, 29, 44, .14);
+    }
+
+    .pill.warning {
+      border-color: rgba(255, 181, 71, .9);
+      color: var(--warning);
+      background: rgba(90, 63, 25, .14);
+    }
+
+    .filters-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .filters-bar .group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 180px;
+    }
+
+    label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .14em;
+      color: var(--muted);
+    }
+
+    select {
+      border-radius: 999px;
+      padding: 7px 10px;
+      border: 1px solid rgba(115, 135, 212, 0.5);
+      background: rgba(5, 7, 20, .95);
+      color: var(--text);
+      font-size: 13px;
+      outline: none;
+      min-height: 32px;
+    }
+
+    select:focus {
+      border-color: rgba(163, 184, 255, .95);
+      box-shadow: 0 0 0 1px rgba(163, 184, 255, 0.55);
+    }
+
+    .chips-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+
+    .chip-status {
+      font-size: 10px;
+      padding: 3px 7px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, .08);
+      background: rgba(3, 5, 16, .9);
+      color: var(--muted);
+    }
+
+    .chip-status.green {
+      border-color: rgba(70, 211, 154, .9);
+      color: var(--success);
+      background: rgba(23, 67, 49, .4);
+    }
+
+    .chip-status.red {
+      border-color: rgba(255, 92, 122, .9);
+      color: var(--danger);
+      background: rgba(85, 23, 39, .4);
+    }
+
+    canvas {
+      width: 100% !important;
+      height: 260px !important;
+    }
+
+    
+
+    .chart-wrapper {
+      position: relative;
+      overflow: hidden;
+      border-radius: var(--radius-sm);
+      background: radial-gradient(circle at top, rgba(48, 60, 120, .5), rgba(8, 11, 24, 1));
+      padding: 6px 8px 6px;
+    }
+
+    .chart-legenda {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .legend-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      margin-right: 4px;
+    }
+
+    .table-wrapper {
+      max-height: 360px;
+      overflow: auto;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(88, 103, 160, .6);
+      background: radial-gradient(circle at 0 0, rgba(51, 61, 115, .45), rgba(4, 6, 18, .96));
+    }
+
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+
+    thead {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: linear-gradient(90deg, rgba(10, 13, 32, .97), rgba(17, 22, 51, .97));
+    }
+
+    th, td {
+      padding: 6px 8px;
+      white-space: nowrap;
+      border-bottom: 1px solid rgba(41, 51, 94, .8);
+    }
+
+    th {
+      text-align: left;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .14em;
+      color: var(--muted);
+    }
+
+    tbody tr:nth-child(even) { background: rgba(7, 10, 28, .9); }
+    tbody tr:hover { background: rgba(18, 26, 70, .9); }
+
+    .tag-sla-ok {
+      border-radius: 999px;
+      padding: 2px 7px;
+      font-size: 10px;
+      background: rgba(38, 152, 108, .18);
+      color: var(--success);
+      border: 1px solid rgba(70, 211, 154, .9);
+    }
+
+    .tag-sla-nok {
+      border-radius: 999px;
+      padding: 2px 7px;
+      font-size: 10px;
+      background: rgba(129, 34, 55, .18);
+      color: var(--danger);
+      border: 1px solid rgba(255, 92, 122, .9);
+    }
+
+    .tag-backlog {
+      border-radius: 999px;
+      padding: 2px 7px;
+      font-size: 10px;
+      background: rgba(101, 83, 37, .16);
+      color: var(--warning);
+      border: 1px solid rgba(255, 181, 71, .9);
+    }
+
+    .tag-neutral {
+      border-radius: 999px;
+      padding: 2px 7px;
+      font-size: 10px;
+      background: rgba(96, 109, 160, .18);
+      color: var(--muted);
+      border: 1px solid rgba(160, 171, 220, .9);
+    }
+
+    /* Heatmap de risco SLA por etapa */
+    .heatmap-cell {
+      text-align: center;
+      font-size: 12px;
+      font-weight: 500;
+      border-radius: 8px;
+      padding: 4px 6px;
+      min-width: 70px;
+    }
+
+    .heatmap-cell span {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: rgba(0,0,0,.25);
+      font-size: 11px;
+    }
+
+    .empty-state {
+      font-size: 13px;
+      color: var(--muted);
+      padding: 10px 0 4px;
+    }
+
+    /* Plano de ação */
+    .action-list {
+      margin: 6px 0 0;
+      padding-left: 18px;
+      font-size: 13px;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .action-item { margin: 0; line-height: 1.4; }
+    .action-item strong { font-weight: 600; }
+
+    .config-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(2, 2, 10, 0.78);
+      backdrop-filter: blur(18px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 40;
+    }
+
+    .config-backdrop.open { display: flex; }
+
+    .config-panel {
+      width: min(480px, 94vw);
+      background: radial-gradient(circle at top left, rgba(64, 74, 141, .82), rgba(4, 6, 20, .98));
+      border-radius: 22px;
+      padding: 18px 18px 16px;
+      border: 1px solid rgba(162, 181, 255, .4);
+      box-shadow: 0 26px 70px rgba(0, 0, 0, .9);
+      color: var(--text);
+    }
+
+    .config-panel header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .config-panel h2 { margin: 0; font-size: 16px; letter-spacing: .04em; }
+
+    .config-panel p {
+      margin: 6px 0 12px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    /* Modal de detalhe da distribuição */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(3, 5, 18, 0.88);
+      backdrop-filter: blur(18px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 45;
+    }
+
+    .modal-backdrop.open {
+      display: flex;
+    }
+
+    .modal-panel {
+      width: min(900px, 96vw);
+      max-height: 80vh;
+      background: radial-gradient(circle at top left, rgba(64, 74, 141, .82), rgba(4, 6, 20, .98));
+      border-radius: 22px;
+      padding: 18px 18px 16px;
+      border: 1px solid rgba(162, 181, 255, .4);
+      box-shadow: 0 26px 70px rgba(0, 0, 0, .9);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .modal-panel header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .modal-panel h2 {
+      margin: 0;
+      font-size: 16px;
+      letter-spacing: .04em;
+    }
+
+    .modal-panel p {
+      margin: 4px 0 8px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .modal-actions {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+
+    .modal-table-wrapper {
+      flex: 1;
+      min-height: 0;
+      border-radius: 14px;
+      border: 1px solid rgba(88, 103, 160, .6);
+      background: radial-gradient(circle at 0 0, rgba(51, 61, 115, .45), rgba(4, 6, 18, .96));
+      overflow: auto;
+    }
+
+    .modal-table-wrapper table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .modal-table-wrapper th,
+    .modal-table-wrapper td {
+      padding: 6px 8px;
+      white-space: nowrap;
+      border-bottom: 1px solid rgba(41, 51, 94, .8);
+    }
+
+    .modal-table-wrapper thead {
+      position: sticky;
+      top: 0;
+      background: linear-gradient(90deg, rgba(10, 13, 32, .97), rgba(17, 22, 51, .97));
+      z-index: 1;
+    }
+
+    .modal-empty {
+      font-size: 13px;
+      color: var(--muted);
+      padding: 10px 0 4px;
+    }
+
+    .config-row {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    input[type="file"] {
+      width: 100%;
+      border-radius: 999px;
+      padding: 7px 10px;
+      border: 1px dashed rgba(182, 195, 255, 0.8);
+      background: rgba(6, 8, 25, .96);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .config-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 6px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .config-footer small {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-dot-ok,
+    .status-dot-warn {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+    }
+
+    .status-dot-ok {
+      background: var(--success);
+      box-shadow: 0 0 0 4px rgba(70, 211, 154, 0.35);
+    }
+
+    .status-dot-warn {
+      background: var(--warning);
+      box-shadow: 0 0 0 4px rgba(255, 181, 71, 0.35);
+    }
+
+    .pill-file {
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 11px;
+      background: rgba(12, 17, 45, .96);
+      border: 1px solid rgba(156, 178, 255, .7);
+      color: var(--muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pill-file span {
+      max-width: 200px;
+      white-space: nowrap;
+      text-overflow: ellipsis;
+      overflow: hidden;
+    }
+
+    .pill-file .icon { font-size: 13px; }
+
+    /* Modo Apresentação */
+    body.presentation-mode .app-header { padding: 30px 40px; }
+    body.presentation-mode .app-main { padding: 30px 40px; }
+    body.presentation-mode .card { margin-bottom: 40px; }
+    body.presentation-mode .card-title { font-size: 24px; }
+    body.presentation-mode .card-caption { font-size: 16px; }
+    body.presentation-mode .metric-value { font-size: 56px; }
+    body.presentation-mode .metric-sub { font-size: 16px; }
+    body.presentation-mode .chart-wrapper canvas { min-height: 500px !important; }
+    body.presentation-mode .table-wrapper { display: none; }
+    body.presentation-mode #auditWrapper { display: none; }
+    body.presentation-mode .config-panel { display: none !important; }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="app-header">
+      <div class="app-title">
+        <h1>
+          <span class="dot"></span>
+          ZIG — Painel de SLA · Logística CX
+          <span class="badge">CX · Casas & Solicitações</span>
+        </h1>
+        <span class="subtitle">
+          Curva de atendimento + backlog + SLA por Filial de Expedição & Mês (planilha ClickUp & campos z.logistica / z.ops)
+        </span>
+      </div>
+
+      <div class="header-actions">
+        <button class="chip" type="button">
+          <span class="icon">📊</span>
+          SLA Estatístico · Auditável
+        </button>
+        <button class="btn-ghost" id="btnPresentationMode" type="button">
+          <span class="icon">🧑‍💼</span>
+          Modo Apresentação
+        </button>
+        <button class="btn-ghost" id="btnOpenConfig" type="button">
+          <span class="icon">⚙️</span>
+          Configurações & Planilha
+        </button>
+      </div>
+    </header>
+
+    <main class="app-main">
+      <!-- Banner de validação de planilha -->
+      <section id="validationBanner" class="card" style="display:none; background:#3d1f2a; border-left:4px solid #ff5c7a; margin-bottom:20px;">
+        <div class="card-header">
+          <div>
+            <div class="card-title">⚠️ Problema na Planilha</div>
+            <div class="card-caption">A planilha carregada apresenta problemas que podem afetar a análise</div>
+          </div>
+          <span class="pill danger">Erro</span>
+        </div>
+        <div id="validationMessages" style="margin:0; padding-left:20px; color:#e8ecf5; line-height:1.8;"></div>
+      </section>
+
+      <!-- Alertas de operação -->
+      <section id="businessAlerts" class="card" style="display:none; background:#2a1f3d; border-left:4px solid #ff5c7a; margin-bottom:20px;">
+        <div class="card-header">
+          <div>
+            <div class="card-title">🚨 Alertas de Operação</div>
+            <div class="card-caption">Condições críticas detectadas nos dados filtrados</div>
+          </div>
+          <span class="pill danger">Atenção</span>
+        </div>
+        <ul id="businessAlertsList" style="margin:0; padding-left:20px; color:#e8ecf5; line-height:1.8;"></ul>
+      </section>
+
+      <section class="grid grid-4">
+        <article class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Total de solicitações</div>
+              <div class="card-caption">Período filtrado · todas esteiras</div>
+            </div>
+            <span class="pill" id="pillPeriodo">Sem dados</span>
+          </div>
+          <div class="metric-value" id="metricTotal">–</div>
+          <div class="metric-sub" id="metricTotalDetalhe">
+            Carregue a planilha no botão <strong>Configurações</strong>.
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Concluídas</div>
+              <div class="card-caption">Status = “Concluído”</div>
+            </div>
+            <span class="pill success" id="pillConcluidasPct">–</span>
+          </div>
+          <div class="metric-value" id="metricConcluidas">–</div>
+          <div class="metric-sub" id="metricConcluidasDetalhe">–</div>
+        </article>
+
+        <article class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Backlog (em aberto)</div>
+              <div class="card-caption">Quantas faltam vs. promessa</div>
+            </div>
+            <span class="pill warning" id="pillBacklogSplit">–</span>
+          </div>
+          <div class="metric-value" id="metricBacklog">–</div>
+          <div class="metric-sub" id="metricBacklogDetalhe">–</div>
+        </article>
+
+        <article class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Saúde do SLA</div>
+              <div class="card-caption">Concluídas dentro vs. fora do prazo</div>
+            </div>
+            <span class="pill danger" id="pillSlaSaude">–</span>
+          </div>
+          <div class="metric-value" id="metricSlaSplit">–</div>
+          <div class="metric-sub" id="metricSlaSplitDetalhe">–</div>
+        </article>
+
+        <article class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Média de Risco SLA</div>
+              <div class="card-caption">Score médio de risco operacional (0-100)</div>
+            </div>
+            <span class="pill warning" id="pillRisco">–</span>
+          </div>
+          <div class="metric-value" id="riscoMedio">–</div>
+          <div class="metric-sub" id="riscoMedioDetalhe">Calculado com base em contexto operacional</div>
+        </article>
+      </section>
+
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Filtros de análise</div>
+            <div class="card-caption">
+              Filtre por Filial de Expedição e Mês de Criação (Date Created / Data Criada).
+            </div>
+          </div>
+        <span class="pill">Modelo estatístico · <span>auditável</span></span>
+        </div>
+
+        <div class="filters-bar">
+          <div class="group">
+            <label for="filterFilial">Filial de Expedição (z.logistica)</label>
+            <select id="filterFilial">
+              <option value="__ALL__">Todas as filiais</option>
+            </select>
+          </div>
+
+          <div class="group">
+            <label for="filterMes">Mês de criação (Date Created / Data Criada)</label>
+            <select id="filterMes">
+              <option value="__ALL__">Todos os meses</option>
+            </select>
+          </div>
+
+          <div class="group">
+            <label>Resumo rápido</label>
+            <div class="chips-row" id="chipsResumo">
+              <span class="chip-status">Total: –</span>
+              <span class="chip-status green">Dentro do SLA: –</span>
+              <span class="chip-status red">Fora do SLA: –</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="grid grid-2">
+        <article class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Curva de SLA</div>
+              <div class="card-caption">
+                Acúmulo de solicitações criadas vs. concluídas vs. concluídas dentro do SLA (linha do tempo).
+              </div>
+            </div>
+            <span class="pill">Curva temporal</span>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="slaCurveChart"></canvas>
+          </div>
+          <div class="chart-legenda">
+            <span><span class="legend-dot" style="background:#9ca9ff"></span> Acumulado criado</span>
+            <span><span class="legend-dot" style="background:#46d39a"></span> Acumulado concluído</span>
+            <span><span class="legend-dot" style="background:#ffb547"></span> Concluído dentro do SLA</span>
+          </div>
+        </article>
+
+        <article class="card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Indicadores de SLA & Backlog</div>
+              <div class="card-caption">
+                Comparativo concluído × backlog (dentro / fora do prazo).
+              </div>
+            </div>
+            <span class="pill">Distribuição</span>
+          </div>
+          <div class="chart-wrapper">
+            <canvas id="slaStatusChart"></canvas>
+          </div>
+          <div class="chart-legenda">
+            <span><span class="legend-dot" style="background:#46d39a"></span> Dentro do SLA / No prazo</span>
+            <span><span class="legend-dot" style="background:#ff5c7a"></span> Fora do SLA / Vencido</span>
+          </div>
+        </article>
+      </section>
+
+      <!-- NOVO: curva em forma de sino (distribuição dos dias) -->
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Distribuição estatística do SLA</div>
+            <div class="card-caption">
+              Curva de dias reais de atendimento (média ≈ mediana ≈ moda quando o processo está estável).
+            </div>
+          </div>
+          <span class="pill">Curva tipo “sino”</span>
+        </div>
+        <div class="chart-wrapper">
+          <canvas id="slaDistribChart"></canvas>
+          <div class="metric-sub" id="slaDistribResumo">
+            Carregue a planilha para ver P50 / P80 / P90 dos dias de atendimento.
+          </div>
+        </div>
+        <div class="chart-legenda">
+          <span><span class="legend-dot" style="background:#9ca9ff"></span> Frequência de dias (concluídas)</span>
+          <span><span class="legend-dot" style="background:#ffb547"></span> Curva normal ajustada</span>
+        </div>
+      </section>
+
+      <!-- NOVO: SLA por etapa (Estoque · Setup · Transportes) -->
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">SLA por etapa · Estoque · Setup · Transportes</div>
+            <div class="card-caption">
+              Percentual de solicitações concluídas dentro do SLA em cada etapa do fluxo,
+              considerando o modelo 24h Estoque · 24h Setup · restante Transportes.
+            </div>
+          </div>
+          <span class="pill">Visão por esteira</span>
+        </div>
+        <div class="chart-wrapper">
+          <canvas id="slaStageChart"></canvas>
+        </div>
+
+        <!-- NOVO: insight automático -->
+        <div class="metric-sub" id="slaStageInsight">
+          Carregue a planilha para ver os insights das etapas.
+        </div>
+
+        <div class="chart-legenda">
+          <span><span class="legend-dot" style="background:#46d39a"></span> Dentro do prazo (quantidade)</span>
+          <span><span class="legend-dot" style="background:#ff5c7a"></span> Fora do prazo (quantidade)</span>
+        </div>
+      </section>
+
+      <!-- SLA por Tipo de Solicitação -->
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">SLA por Tipo de Solicitação</div>
+            <div class="card-caption">
+              Performance de SLA segmentada por tipo (Acréscimo, Devolução, Troca, Locação, etc.)
+            </div>
+          </div>
+          <span class="pill">Análise por tipo</span>
+        </div>
+        <div class="chart-wrapper">
+          <canvas id="slaTipoChart"></canvas>
+        </div>
+        <div class="chart-legenda">
+          <span><span class="legend-dot" style="background:#46d39a"></span> Dentro do SLA</span>
+          <span><span class="legend-dot" style="background:#ff5c7a"></span> Fora do SLA</span>
+        </div>
+      </section>
+
+      <!-- Heatmap: Etapa × Filial -->
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Heatmap · Etapa × Filial</div>
+            <div class="card-caption">
+              Mapa de calor mostrando % fora do prazo em cada etapa por filial de expedição
+            </div>
+          </div>
+          <span class="pill">Visão cruzada</span>
+        </div>
+        <div class="table-wrapper" style="max-height:600px; overflow:auto;">
+          <table id="heatmapTable" style="width:100%; border-collapse:collapse;">
+            <thead>
+              <tr style="background:#1a1530;">
+                <th style="padding:12px; text-align:left; position:sticky; top:0; background:#1a1530; z-index:10;">Filial</th>
+                <th style="padding:12px; text-align:center; position:sticky; top:0; background:#1a1530; z-index:10;">Estoque</th>
+                <th style="padding:12px; text-align:center; position:sticky; top:0; background:#1a1530; z-index:10;">Setup</th>
+                <th style="padding:12px; text-align:center; position:sticky; top:0; background:#1a1530; z-index:10;">Transportes</th>
+              </tr>
+            </thead>
+            <tbody id="heatmapBody">
+              <tr>
+                <td colspan="4" style="padding:20px; text-align:center; color:#8892b8;">
+                  Carregue a planilha para ver o heatmap
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- Tendência: SLA por Etapa ao Longo do Tempo -->
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Tendência · SLA por Etapa</div>
+            <div class="card-caption">
+              Evolução da % de tarefas dentro do prazo por etapa nas últimas semanas
+            </div>
+          </div>
+          <span class="pill warning">Temporal</span>
+        </div>
+        <div class="chart-wrapper">
+          <canvas id="stageTrendChart"></canvas>
+        </div>
+      </section>
+
+      <!-- Histogramas por Etapa: Distribuição de Tempo Individual -->
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Distribuição · Tempo por Etapa</div>
+            <div class="card-caption">
+              Histograma mostrando quantas tarefas levaram N dias em cada etapa (Estoque, Setup, Transportes)
+            </div>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <label for="stageDistribSelect" style="color:#8892b8; font-size:13px;">Selecione:</label>
+            <select id="stageDistribSelect" style="padding:6px 12px; background:#1a1530; border:1px solid #2a2544; color:#d0d6f3; border-radius:4px; cursor:pointer;">
+              <option value="estoque">Estoque</option>
+              <option value="setup">Setup</option>
+              <option value="transp">Transportes</option>
+            </select>
+          </div>
+        </div>
+        <div class="chart-wrapper">
+          <canvas id="stageDistribChart"></canvas>
+        </div>
+      </section>
+
+      
+
+      <!-- P.A.I. — Plano de Ação Inteligente (baseado em etapas) -->
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">P.A.I. — Plano de Ação Inteligente</div>
+            <div class="card-caption">
+              Diagnóstico automático baseado nas etapas críticas do fluxo operacional.
+            </div>
+          </div>
+          <span class="pill">AI · Diagnóstico</span>
+        </div>
+        <div id="actionPlanList" class="metric-sub" style="line-height:1.6;">
+          Carregue a planilha para ver as recomendações automáticas.
+        </div>
+      </section>
+
+      <!-- Plano de ação -->
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Plano de ação sugerido</div>
+            <div class="card-caption">
+              Pontos de foco gerados automaticamente a partir do SLA, backlog e tipos de solicitação.
+            </div>
+          </div>
+          <span class="pill">Playbook tático</span>
+        </div>
+        <div id="actionEmpty" class="empty-state">
+          Carregue a planilha e aplique filtros para ver recomendações de ação.
+        </div>
+        <ul class="action-list" id="actionList"></ul>
+      </section>
+
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Tabela auditável · detalhe por Task</div>
+            <div class="card-caption">
+              Cada linha é uma Task (ClickUp) com classificação de SLA e datas chave.
+            </div>
+          </div>
+          <div style="display:flex; gap:10px; align-items:center;">
+            <input 
+              type="text" 
+              id="auditSearch" 
+              placeholder="🔍 Buscar por Task ID ou Nome..."
+              style="padding:6px 12px; font-size:12px; border:1px solid #4a5578; border-radius:6px; background:#1a1530; color:#e8ecf5; width:250px;"
+            />
+            <button class="btn-primary" id="btnExportExcel" type="button" style="padding:6px 12px; font-size:12px;">
+              📤 Exportar Excel
+            </button>
+            <span class="pill">ClickUp · z.logistica · z.ops</span>
+          </div>
+        </div>
+
+        <div class="table-wrapper" id="auditWrapper">
+          <div class="empty-state" id="auditEmpty">
+            Carregue a planilha para visualizar as Tasks e a classificação de SLA.
+          </div>
+          <table id="auditTable" style="display:none">
+            <thead>
+              <tr>
+                <th>Task ID</th>
+                <th>Nome</th>
+                <th>Status</th>
+                <th>Tipo Solicitação</th>
+                <th>Status Estoque</th>
+                <th>Status Transportes</th>
+                <th>Tipo de Frete</th>
+                <th>Data Retirada</th>
+                <th>Filial Expedição</th>
+                <th>Filial Operação</th>
+                <th>Data Criada</th>
+                <th>Due Date</th>
+                <th>Data Conclusão Final</th>
+                <th>Risco SLA</th>
+                <th>Classificação SLA</th>
+                <th>Dias promessa</th>
+                <th>Dias reais</th>
+              </tr>
+            </thead>
+            <tbody id="auditBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal de detalhe da distribuição de SLA -->
+  <div class="modal-backdrop" id="slaDistribModal">
+    <div class="modal-panel">
+      <header>
+        <div>
+          <h2>Detalhe · Distribuição de SLA</h2>
+          <p id="slaDistribModalSubtitle">
+            Selecione um dia na distribuição para ver as Tasks correspondentes.
+          </p>
+        </div>
+        <button class="btn-ghost" type="button" id="btnCloseSlaDistribModal">
+          <span class="icon">✕</span>
+          Fechar
+        </button>
+      </header>
+
+      <div class="modal-actions">
+        <small id="slaDistribModalInfo">Nenhum dia selecionado.</small>
+        <button class="btn-primary" type="button" id="btnExportSlaDistribDay">
+          <span class="icon">📤</span>
+          Exportar este dia (XLSX)
+        </button>
+      </div>
+
+      <div class="modal-table-wrapper">
+        <div class="modal-empty" id="slaDistribModalEmpty">
+          Clique em uma barra da "Distribuição estatística do SLA" para ver os detalhes das Tasks
+          com aquele número de dias de atendimento.
+        </div>
+        <table id="slaDistribModalTable" style="display:none">
+          <thead>
+            <tr>
+              <th>Task ID</th>
+              <th>Nome</th>
+              <th>Status</th>
+              <th>Tipo</th>
+              <th>Filial Expedição</th>
+              <th>Data Criada</th>
+              <th>Due Date</th>
+              <th>Data Final</th>
+              <th>Dias reais</th>
+              <th>Situação SLA</th>
+            </tr>
+          </thead>
+          <tbody id="slaDistribModalBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de detalhe do SLA por etapa -->
+  <div class="modal-backdrop" id="slaEtapaModal">
+    <div class="modal-panel">
+      <header>
+        <div>
+          <h2>Detalhe · SLA por etapa</h2>
+          <p id="slaEtapaModalSubtitle">
+            Clique em uma barra do gráfico "SLA por etapa · Estoque · Setup · Transportes" para ver as Tasks.
+          </p>
+        </div>
+        <button class="btn-ghost" type="button" id="btnCloseSlaEtapaModal" onclick="closeSlaEtapaModal()">
+          <span class="icon">✕</span>
+          Fechar
+        </button>
+      </header>
+
+      <div class="modal-actions">
+        <small id="slaEtapaModalInfo">Nenhuma etapa selecionada.</small>
+        <button class="btn-primary" type="button" id="btnExportSlaEtapaBucket">
+          <span class="icon">📤</span>
+          Exportar este bucket (XLSX)
+        </button>
+      </div>
+
+      <div class="modal-table-wrapper">
+        <div class="modal-empty" id="slaEtapaModalEmpty">
+          Clique em uma barra da "SLA por etapa · Estoque · Setup · Transportes" para ver as Tasks
+          daquela combinação <strong>Etapa × Dentro/Fora do prazo</strong>.
+        </div>
+        <table id="slaEtapaModalTable" style="display:none">
+          <thead>
+            <tr>
+              <th>Task ID</th>
+              <th>Nome</th>
+              <th>Status</th>
+              <th>Tipo</th>
+              <th>Etapa</th>
+              <th>Filial Expedição</th>
+              <th>Data Criada</th>
+              <th>Due Date</th>
+              <th>Data Final</th>
+              <th>Dias reais</th>
+              <th>Situação SLA (global)</th>
+            </tr>
+          </thead>
+          <tbody id="slaEtapaModalBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Painel de Configurações -->
+  <div class="config-backdrop" id="configBackdrop">
+    <div class="config-panel">
+      <header>
+        <div>
+          <h2>Configurações do Painel & Planilha</h2>
+          <p>
+            Selecione o arquivo <strong>XLSX</strong> exportado do ClickUp com as colunas
+            <em>Task ID, Task Name, Status, Date Created / Data Criada, Due Date / Data de vencimento,
+            Tipo de solicitação (z.logistica), datas z.logistica e filiais (z.ops / z.logistica)</em>.
+          </p>
+        </div>
+        <button class="btn-ghost" type="button" id="btnCloseConfig">
+          <span class="icon">✕</span>
+          Fechar
+        </button>
+      </header>
+
+      <div class="config-row">
+        <label>Planilha de SLA</label>
+        <button class="btn-primary" type="button" id="btnSelectFile">
+          <span class="icon">📥</span>
+          Inserir planilha (XLSX)
+        </button>
+        <input id="fileInput" type="file" accept=".xlsx,.xls" style="display:none;" />
+      </div>
+
+      <div class="config-footer">
+        <small id="fileStatus">
+          <span class="status-dot-warn"></span>
+          Nenhum arquivo carregado.
+        </small>
+        <small id="fileNamePill" style="display:none">
+          <span class="pill-file">
+            <span class="icon">📄</span>
+            <span id="fileNameText"></span>
+          </span>
+        </small>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const state = {
+      tasks: [],
+      filtered: [],
+      filters: { filial: "__ALL__", mes: "__ALL__" },
+      auditSort: { key: null, direction: "asc" },  // NOVO: ordenação da tabela
+      auditSearchTerm: "",  // NOVO: termo de busca
+      validation: { ok: true, missingColumns: [], warnings: [] },  // NOVO: validação de planilha
+      charts: {
+        curve: null,
+        status: null,
+        distrib: null,
+        stage: null,          // NOVO: gráfico por etapa (Estoque / Setup / Transportes)
+        tipo: null,           // NOVO: gráfico por tipo de solicitação
+        trend: null,          // NOVO: tendência temporal por etapa
+        stageDistrib: null    // NOVO: distribuição de tempo por etapa individual
+      },
+      // NOVO: seleção da distribuição
+      slaDistribBuckets: {},
+      slaDistribLabelsDays: [],
+      slaDistribSelection: {
+        day: null,
+        tasks: []
+      },
+      // NOVO: buckets de SLA por etapa
+      slaStageBuckets: {
+        Estoque: { dentro: [], fora: [] },
+        Setup: { dentro: [], fora: [] },
+        Transportes: { dentro: [], fora: [] }
+      },
+      slaEtapaSelection: {
+        etapa: null,
+        bucket: null, // "dentro" ou "fora"
+        tasks: []
+      }
+    };
+
+    // META DE SLA (em % das concluídas dentro do prazo)
+    const SLA_TARGET = 90;
+
+    function toDate(value) {
+      if (!value && value !== 0) return null;
+      if (value instanceof Date) return value;
+
+      if (typeof value === "number" && typeof XLSX !== "undefined" && XLSX.SSF) {
+        const d = XLSX.SSF.parse_date_code(value);
+        if (!d) return null;
+        return new Date(d.y, d.m - 1, d.d);
+      }
+
+      if (typeof value === "string") {
+        const clean = value.trim();
+        if (!clean) return null;
+        const onlyDate = clean.split("T")[0].split(" ")[0];
+        const parts = onlyDate.includes("/") ? onlyDate.split("/") : onlyDate.split("-");
+        if (parts.length === 3) {
+          let d, m, y;
+          if (parts[0].length === 4) {
+            y = parseInt(parts[0], 10);
+            m = parseInt(parts[1], 10) - 1;
+            d = parseInt(parts[2], 10);
+          } else {
+            d = parseInt(parts[0], 10);
+            m = parseInt(parts[1], 10) - 1;
+            y = parseInt(parts[2], 10);
+          }
+          const dt = new Date(y, m, d);
+          if (isNaN(dt.getTime())) return null;
+          return dt;
+        }
+      }
+      return null;
+    }
+
+    function formatDate(date) {
+      if (!date) return "";
+      const d = date.getDate().toString().padStart(2, "0");
+      const m = (date.getMonth() + 1).toString().padStart(2, "0");
+      const y = date.getFullYear();
+      return d + "/" + m + "/" + y;
+    }
+
+    function diffDays(start, end) {
+      if (!start || !end) return null;
+      const a = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+      const b = new Date(end.getFullYear(), end.getMonth(), end.getDate());
+      const diffMs = b - a;
+      return Math.round(diffMs / 86400000);
+    }
+
+    function monthKey(date) {
+      if (!date) return null;
+      const y = date.getFullYear();
+      const m = (date.getMonth() + 1).toString().padStart(2, "0");
+      return y + "-" + m;
+    }
+
+    function monthLabel(key) {
+      if (!key) return "";
+      const [y, mStr] = key.split("-");
+      const m = parseInt(mStr, 10);
+      const nomes = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+      return (nomes[m - 1] || mStr) + "/" + y;
+    }
+
+    function loadWorkbook(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          try {
+            const data = new Uint8Array(e.target.result);
+            const wb = XLSX.read(data, { type: "array" });
+            resolve(wb);
+          } catch (err) {
+            reject(err);
+          }
+        };
+        reader.onerror = (err) => reject(err);
+        reader.readAsArrayBuffer(file);
+      });
+    }
+
+    function normalizeHeaderName(str) {
+      if (!str) return "";
+      return String(str)
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    // ======================================================
+    // FUNÇÃO DE RISCO SLA (0-100)
+    // ======================================================
+    function calcularRisco(task, contexto) {
+      let score = 0;
+
+      // 1) Filial crítica (se aparece muito em P80)
+      if (contexto.filiaisCriticas.has(task.filialExpedicao)) {
+        score += 25;
+      }
+
+      // 2) Tipo de solicitação com histórico fraco
+      if (contexto.tiposCriticos.has(task.tipo)) {
+        score += 20;
+      }
+
+      // 3) Etapa atual — Setup é onde mais estoura
+      if (task.statusNorm.includes("setup")) score += 15;
+      if (task.statusNorm.includes("estoque")) score += 8;
+
+      // 4) Proximidade do due date
+      if (task.dueDate) {
+        const hoje = new Date();
+        const diasRestantes = (task.dueDate - hoje) / 86400000;
+
+        if (diasRestantes <= 0) score += 30;       // já atrasado
+        else if (diasRestantes <= 1) score += 25;  // vence amanhã
+        else if (diasRestantes <= 2) score += 20;  // vence em 2 dias
+        else if (diasRestantes <= 3) score += 10;
+      }
+
+      // 5) Se já está fora do prazo → risco máximo
+      if (task.foraSla) score = 100;
+
+      return Math.min(100, Math.max(0, Math.round(score)));
+    }
+
+    function construirContextoDeRisco(tasks) {
+      const contexto = {
+        filiaisCriticas: new Set(),
+        tiposCriticos: new Set()
+      };
+
+      // Detectar filiais ruins com base no P80 real
+      const porFilial = {};
+      tasks.forEach(t => {
+        if (!t.diasReais) return;
+        if (!porFilial[t.filialExpedicao]) porFilial[t.filialExpedicao] = [];
+        porFilial[t.filialExpedicao].push(t.diasReais);
+      });
+
+      for (const filial in porFilial) {
+        const valores = porFilial[filial].sort((a, b) => a - b);
+        const p80 = valores[Math.floor(valores.length * 0.8)];
+        if (p80 >= 4) contexto.filiaisCriticas.add(filial); // heurística
+      }
+
+      // Detectar tipos que estouram muito
+      const porTipo = {};
+      tasks.forEach(t => {
+        if (!porTipo[t.tipo]) porTipo[t.tipo] = { total: 0, fora: 0 };
+        porTipo[t.tipo].total++;
+        if (t.foraSla) porTipo[t.tipo].fora++;
+      });
+
+      for (const tipo in porTipo) {
+        const p = porTipo[tipo].fora / porTipo[tipo].total;
+        if (p >= 0.25) contexto.tiposCriticos.add(tipo);
+      }
+
+      return contexto;
+    }
+
+    function findColumnIndex(headers, candidates) {
+      for (let i = 0; i < headers.length; i++) {
+        const hNorm = normalizeHeaderName(headers[i]);
+        for (const cand of candidates) {
+          if (hNorm.includes(cand)) {
+            return i;
+          }
+        }
+      }
+      return -1;
+    }
+
+    // Parsing da planilha
+    function parseTasksFromWorkbook(wb) {
+      const firstSheetName = wb.SheetNames[0];
+      const ws = wb.Sheets[firstSheetName];
+
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+      if (!rows || rows.length === 0) return [];
+
+      let headerRowIndex = -1;
+      for (let i = 0; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r) continue;
+        const nonEmptyCount = r.filter(
+          (c) => c !== null && c !== undefined && String(c).trim() !== ""
+        ).length;
+        if (nonEmptyCount >= 3) {
+          headerRowIndex = i;
+          break;
+        }
+      }
+      if (headerRowIndex === -1 || headerRowIndex === rows.length - 1) return [];
+
+      const header = rows[headerRowIndex];
+
+      const col = {
+        taskId: findColumnIndex(header, ["task id", "taskid"]),
+        taskName: findColumnIndex(header, ["task name", "nome"]),
+        status: findColumnIndex(header, ["status"]),
+        dateCreated: findColumnIndex(header, ["date created", "data criada"]),
+        dueDate: findColumnIndex(header, ["due date", "data de vencimento"]),
+        tipoSolic: findColumnIndex(header, ["tipo de solicitacao", "tipo de solicitac"]),
+        dataEstoque: findColumnIndex(header, ["data da solicitacao estoque"]),
+        dataTranspSolic: findColumnIndex(header, ["data da solicitacao (z.logistica)", "data da solicitacao transportes"]),
+        dataConclusaoEstoque: findColumnIndex(header, ["data da conclusao estoque"]),
+        dataSetupSolic: findColumnIndex(header, ["data da solicitacao setup"]),
+        dataConclusaoSetup: findColumnIndex(header, ["data da conclusao setup"]),
+        dataConclusaoTransp: findColumnIndex(header, ["data de conclusao transportes"]),
+        filialOperacao: findColumnIndex(header, ["filial da operacao", "filial operacao"]),
+        filialExpedicao: findColumnIndex(header, ["filial de expedicao"]),
+
+        // NOVO: colunas adicionais
+        statusEstoque: findColumnIndex(header, ["status estoque"]),
+        statusTransp: findColumnIndex(header, ["status transportes"]),
+        dataRetirada: findColumnIndex(header, ["data retirada"]),
+        tipoFrete: findColumnIndex(header, ["tipo de frete"])
+      };
+
+      // Validação de colunas essenciais
+      const missingColumns = [];
+      const warnings = [];
+      
+      if (col.taskId === -1) missingColumns.push("Task ID");
+      if (col.taskName === -1) missingColumns.push("Task Name");
+      if (col.status === -1) missingColumns.push("Status");
+      if (col.dateCreated === -1) missingColumns.push("Date Created");
+      if (col.dueDate === -1) warnings.push("Due Date não encontrada - SLA não será calculado");
+      if (col.tipoSolic === -1) warnings.push("Tipo de Solicitação não encontrado");
+      
+      state.validation = {
+        ok: missingColumns.length === 0,
+        missingColumns,
+        warnings
+      };
+
+      if (missingColumns.length > 0) {
+        updateValidationBanner();
+        return [];
+      }
+
+      const tasks = [];
+      for (let i = headerRowIndex + 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row) continue;
+
+        const taskId = col.taskId >= 0 ? row[col.taskId] : null;
+        if (!taskId) continue;
+
+        let statusRaw = col.status >= 0 ? String(row[col.status] || "").trim() : "";
+        let statusNorm = statusRaw.toLowerCase();
+
+        // NOVO: unificar “Devolução” como status “Retirada”
+        if (statusNorm.includes("devolu")) {
+          statusRaw = "Retirada";
+          statusNorm = "retirada";
+        }
+
+        const status = statusRaw;
+        // NOVO: status Retirada (para regra de SLA)
+        const isRetiradaStatus = statusNorm.includes("retira");
+        // NOVO: status Fechamento (fim de linha financeiro)
+        const isFechamentoStatus = statusNorm.includes("fechamento");
+
+        // NOVO: normalização do tipo de solicitação
+        let tipoSolicRaw = col.tipoSolic >= 0 ? String(row[col.tipoSolic] || "").trim() : "";
+        let tipoNorm = tipoSolicRaw.toLowerCase();
+
+        // remover tipos inválidos (não entram no sistema)
+        const tiposInvalidos = ["implantação", "eventuais", "implantacao", "eventual"];
+        if (tiposInvalidos.some(t => tipoNorm.includes(t))) {
+          continue; // descarta esta linha da planilha
+        }
+
+        // unificar “Devolução” em “Retirada”
+        if (tipoNorm.includes("devolu")) {
+          tipoSolicRaw = "Retirada";
+          tipoNorm = "retirada";
+        }
+
+        const tipo = tipoSolicRaw;
+        const dateCreated = col.dateCreated >= 0 ? toDate(row[col.dateCreated]) : null;
+        const dueDate = col.dueDate >= 0 ? toDate(row[col.dueDate]) : null;
+
+        const dataEstoque = col.dataEstoque >= 0 ? toDate(row[col.dataEstoque]) : null;
+        const dataTranspSolic = col.dataTranspSolic >= 0 ? toDate(row[col.dataTranspSolic]) : null;
+        const dataConclusaoEstoque = col.dataConclusaoEstoque >= 0 ? toDate(row[col.dataConclusaoEstoque]) : null;
+        const dataSetupSolic = col.dataSetupSolic >= 0 ? toDate(row[col.dataSetupSolic]) : null;
+        const dataConclusaoSetup = col.dataConclusaoSetup >= 0 ? toDate(row[col.dataConclusaoSetup]) : null;
+        const dataConclusaoTransp = col.dataConclusaoTransp >= 0 ? toDate(row[col.dataConclusaoTransp]) : null;
+
+        const filialOperacao = col.filialOperacao >= 0 ? String(row[col.filialOperacao] || "").trim() : "";
+        const filialExpedicao = col.filialExpedicao >= 0 ? String(row[col.filialExpedicao] || "").trim() : "";
+
+  // NOVO: status por etapa, data retirada e tipo de frete
+  const statusEstoque = col.statusEstoque >= 0 ? String(row[col.statusEstoque] || "").trim() : "";
+  const statusTransp = col.statusTransp >= 0 ? String(row[col.statusTransp] || "").trim() : "";
+  const statusTranspNorm = statusTransp.toLowerCase();
+  const dataRetirada = col.dataRetirada >= 0 ? toDate(row[col.dataRetirada]) : null;
+  const tipoFrete = col.tipoFrete >= 0 ? String(row[col.tipoFrete] || "").trim() : "";
+  const tipoFreteNorm = tipoFrete.toLowerCase();
+  const isFreteTransportes = tipoFreteNorm.startsWith("transport");
+  const isFreteRetirada = tipoFreteNorm.startsWith("retir");
+  const isEmReversa = statusTranspNorm.includes("reversa");
+
+        // NOVO: regra de fim de SLA
+        let finalDate = null;
+
+        // Para efeito de SLA, consideramos "concluído" se:
+        // - status contém "Conclu" (Concluído)
+        // - status é "Retirada"  → SLA para em Setup
+        // - status é "Fechamento" → SLA para com base nas datas de conclusão das etapas
+        const isConcluida =
+          statusNorm.includes("conclu") || isRetiradaStatus || isFechamentoStatus;
+
+        if (isConcluida) {
+          if (isRetiradaStatus) {
+            // Status = Retirada → SLA termina quando Setup conclui
+            finalDate =
+              dataConclusaoSetup ||
+              dataConclusaoEstoque ||
+              dataTranspSolic ||  // fallback se não tiver Setup/Estoque
+              dueDate ||
+              dateCreated;
+          } else if (isFechamentoStatus) {
+            // Status = Fechamento → usar apenas as conclusões reais do fluxo logístico
+            // (sem cair em due date / data criada)
+            finalDate =
+              dataConclusaoTransp ||
+              dataConclusaoSetup ||
+              dataConclusaoEstoque ||
+              null;
+          } else {
+            // Demais casos (Concluído normal) → fluxo completo
+            finalDate =
+              dataConclusaoTransp ||
+              dataConclusaoSetup ||
+              dataConclusaoEstoque ||
+              dueDate ||
+              dateCreated;
+          }
+        }
+
+        const slaDias = dueDate && dateCreated ? diffDays(dateCreated, dueDate) : null;
+        const diasReais = finalDate && dateCreated ? diffDays(dateCreated, finalDate) : null;
+
+        const hoje = new Date();
+        let dentroSla = false;
+        let foraSla = false;
+        let backlogNoPrazo = false;
+        let backlogVencido = false;
+
+        if (isConcluida && finalDate && dueDate) {
+          if (finalDate <= dueDate) dentroSla = true;
+          else foraSla = true;
+        } else if (!isConcluida && dueDate) {
+          // NOVO: Em Reversa = depende do cliente -> não conta no SLA como atraso (nem como no prazo)
+          if (isEmReversa) {
+            // não marca backlogNoPrazo nem backlogVencido
+          } else if (hoje <= dueDate) {
+            backlogNoPrazo = true;
+          } else {
+            backlogVencido = true;
+          }
+        }
+
+        tasks.push({
+          raw: row,
+          taskId: String(taskId),
+          taskName: col.taskName >= 0 ? String(row[col.taskName] || "").trim() : "",
+          status,
+          statusNorm,
+          tipo,
+          filialOperacao,
+          filialExpedicao,
+          dateCreated,
+          dueDate,
+          dataEstoque,
+          dataTranspSolic,
+          dataConclusaoEstoque,
+          dataSetupSolic,
+          dataConclusaoSetup,
+          dataConclusaoTransp,
+          finalDate,
+          slaDias,
+          diasReais,
+          dentroSla,
+          foraSla,
+          backlogNoPrazo,
+          backlogVencido,
+          isConcluida,
+          isRetiradaStatus,
+          isFechamentoStatus,
+          mesKey: dateCreated ? monthKey(dateCreated) : null,
+
+          // NOVO: campos auxiliares
+          statusEstoque,
+          statusTransp,
+          dataRetirada,
+          tipoFrete,
+          isFreteTransportes,
+          isFreteRetirada,
+          isEmReversa
+        });
+      }
+
+      // NOVO: calcular risco para todas as tasks
+      const contexto = construirContextoDeRisco(tasks);
+      tasks.forEach(t => {
+        t.risco = calcularRisco(t, contexto);
+      });
+
+      return tasks;
+    }
+
+    function applyFilters() {
+      const { filial, mes } = state.filters;
+      let data = state.tasks.slice();
+
+      if (filial !== "__ALL__") data = data.filter((t) => t.filialExpedicao === filial);
+      if (mes !== "__ALL__") data = data.filter((t) => t.mesKey === mes);
+
+      state.filtered = data;
+      updateUI();
+    }
+
+    function computeAggregates(tasks) {
+      const total = tasks.length;
+      let concluidas = 0;
+      let dentroSla = 0;
+      let foraSla = 0;
+      let backlogTotal = 0;
+      let backlogNoPrazo = 0;
+      let backlogVencido = 0;
+
+      for (const t of tasks) {
+        if (t.isConcluida) {
+          concluidas++;
+          if (t.dentroSla) dentroSla++;
+          if (t.foraSla) foraSla++;
+        } else {
+          backlogTotal++;
+          if (t.backlogNoPrazo) backlogNoPrazo++;
+          if (t.backlogVencido) backlogVencido++;
+        }
+      }
+
+      const pct = (num, den) => (den > 0 ? (num / den) * 100 : 0);
+
+      return {
+        total,
+        concluidas,
+        dentroSla,
+        foraSla,
+        backlogTotal,
+        backlogNoPrazo,
+        backlogVencido,
+        pctConcluidas: pct(concluidas, total),
+        pctDentroTotal: pct(dentroSla, total),
+        pctDentroConcluidas: pct(dentroSla, concluidas),
+        pctBacklogVencido: pct(backlogVencido, backlogTotal)
+      };
+    }
+
+    // SLA por etapa (Estoque / Setup / Transportes) - QUANTIDADE dentro/fora do prazo
+    function computeStageMetrics(tasks) {
+      const stageData = {
+        estoque: { dentro: 0, fora: 0 },
+        setup: { dentro: 0, fora: 0 },
+        transp: { dentro: 0, fora: 0 }
+      };
+
+      for (const t of tasks) {
+        if (!t.dateCreated || !t.dueDate) continue;
+
+        const totalDias = diffDays(t.dateCreated, t.dueDate);
+        if (totalDias == null || totalDias < 0) continue;
+
+        // SLA teórico por etapa: 1 dia Estoque, 1 dia Setup, resto Transportes
+        const slaEstoque = totalDias >= 1 ? 1 : Math.max(totalDias, 0);
+        const slaSetup = totalDias >= 2 ? 1 : Math.max(totalDias - slaEstoque, 0);
+        const slaTransp = Math.max(totalDias - slaEstoque - slaSetup, 0);
+
+        // ---------- ESTOQUE ----------
+        if (t.dataEstoque && slaEstoque > 0) {
+          const estStart = t.dataEstoque || t.dateCreated;
+          const estEnd =
+            t.dataSetupSolic ||
+            t.dataTranspSolic ||
+            t.finalDate ||
+            t.dueDate;
+
+          const diasEst = diffDays(estStart, estEnd);
+          if (diasEst != null && diasEst >= 0) {
+            if (diasEst <= slaEstoque) {
+              stageData.estoque.dentro++;
+            } else {
+              stageData.estoque.fora++;
+            }
+          }
+        }
+
+        // ---------- SETUP ----------
+        if (t.dataSetupSolic && slaSetup > 0) {
+          const setupStart = t.dataSetupSolic;
+          const setupEnd =
+            t.dataTranspSolic ||
+            t.finalDate ||
+            t.dueDate;
+
+          const diasSetup = diffDays(setupStart, setupEnd);
+          if (diasSetup != null && diasSetup >= 0) {
+            if (diasSetup <= slaSetup) {
+              stageData.setup.dentro++;
+            } else {
+              stageData.setup.fora++;
+            }
+          }
+        }
+
+        // ---------- TRANSPORTES ----------
+        if (t.dataTranspSolic && slaTransp > 0) {
+          const transpStart = t.dataTranspSolic;
+          const transpEnd =
+            t.dataConclusaoTransp ||
+            t.finalDate ||
+            t.dueDate;
+
+          const diasTransp = diffDays(transpStart, transpEnd);
+          if (diasTransp != null && diasTransp >= 0) {
+            if (diasTransp <= slaTransp) {
+              stageData.transp.dentro++;
+            } else {
+              stageData.transp.fora++;
+            }
+          }
+        }
+      }
+
+      return stageData;
+    }
+
+    // Insight automático das etapas (ISM)
+    function buildStageInsight(metrics) {
+      const partes = [];
+
+      function block(nome, obj) {
+        const total = obj.dentro + obj.fora;
+        if (total === 0) return null;
+
+        const pctFora = total > 0 ? (obj.fora / total) * 100 : 0;
+
+        return {
+          nome,
+          dentro: obj.dentro,
+          fora: obj.fora,
+          total,
+          pctFora
+        };
+      }
+
+      const e = block("Estoque", metrics.estoque);
+      const s = block("Setup", metrics.setup);
+      const t = block("Transportes", metrics.transp);
+
+      const arr = [e, s, t].filter(Boolean);
+
+      if (arr.length === 0) {
+        return "Nenhuma etapa com dados suficientes para gerar insights.";
+      }
+
+      // Ordenar da pior para a melhor etapa (maior % de fora)
+      arr.sort((a, b) => b.pctFora - a.pctFora);
+
+      const pior = arr[0];
+      const segundo = arr[1];
+
+      let texto = "";
+
+      texto += `${pior.nome} é a etapa mais crítica: `;
+      texto += `${pior.fora} fora do prazo (${pior.pctFora.toFixed(1).replace(".", ",")}%).`;
+
+      if (segundo) {
+        texto += ` ${segundo.nome} aparece em seguida com ${segundo.fora} fora (${segundo.pctFora.toFixed(1).replace(".", ",")}%).`;
+      }
+
+      // Se sobrar a terceira etapa:
+      if (arr[2]) {
+        texto += ` ${arr[2].nome} está mais estável (${arr[2].fora} fora).`;
+      }
+
+      return texto;
+    }
+
+    // ISM 2.0 — Insight inteligente completo
+    function buildStageInsightV2(metrics) {
+      const mk = (nome, obj) => {
+        const total = obj.dentro + obj.fora;
+        if (total === 0) return null;
+        const pctFora = (obj.fora / total) * 100;
+        return { nome, dentro: obj.dentro, fora: obj.fora, total, pctFora };
+      };
+
+      const etapas = [
+        mk("Estoque", metrics.estoque),
+        mk("Setup", metrics.setup),
+        mk("Transportes", metrics.transp)
+      ].filter(Boolean);
+
+      if (etapas.length === 0) {
+        return "Nenhuma etapa com dados suficientes para gerar insights.";
+      }
+
+      // Ordena da pior para a melhor
+      etapas.sort((a, b) => b.pctFora - a.pctFora);
+
+      const pior = etapas[0];
+      const segunda = etapas[1] || null;
+      const terceira = etapas[2] || null;
+
+      // Semáforo
+      let status = "";
+      if (pior.pctFora >= 40) status = "🔴 Crítico";
+      else if (pior.pctFora >= 25) status = "🟠 Atenção";
+      else status = "🟡 Monitorar";
+
+      // Diagnóstico base
+      let texto =
+        `${status} — ${pior.nome} é a etapa mais crítica ` +
+        `(${pior.fora} fora de ${pior.total}, ${pior.pctFora.toFixed(1).replace(".", ",")}%). `;
+
+      if (segunda) {
+        texto += `Em seguida vem ${segunda.nome} com ` +
+          `${segunda.fora} fora (${segunda.pctFora.toFixed(1).replace(".", ",")}%). `;
+      }
+
+      if (terceira) {
+        texto += `${terceira.nome} está mais estável ` +
+          `(${terceira.fora} de ${terceira.total}). `;
+      }
+
+      // Causa raiz sugerida
+      if (pior.nome === "Setup") {
+        texto += "Provável causa: lentidão na esteira de Setup ou volume acima da capacidade operacional. ";
+      } else if (pior.nome === "Estoque") {
+        texto += "Provável causa: atraso na produção ou materiais indisponíveis em estoque. ";
+      } else if (pior.nome === "Transportes") {
+        texto += "Provável causa: logística terrestre/urbana pressionada, janelas curtas de entrega ou falta de rota. ";
+      }
+
+      // Recomendações automáticas
+      texto += "Ações recomendadas: ";
+
+      if (pior.nome === "Setup") {
+        texto += "reforçar equipe de configuração, priorizar filas críticas e aplicar triagem automática. ";
+      } else if (pior.nome === "Estoque") {
+        texto += "revisar disponibilização de materiais, antecipar produção e validar consumos. ";
+      } else if (pior.nome === "Transportes") {
+        texto += "revisar roteirização, antecipar expedição e aplicar contingência. ";
+      }
+
+      return texto;
+    }
+
+    // P.A.I — Plano de Ação Inteligente (baseado nos dados das etapas)
+    function buildActionPlanIntelligent(metrics) {
+
+      const mk = (nome, m) => {
+        const total = m.dentro + m.fora;
+        if (total === 0) return null;
+        const pctFora = total > 0 ? (m.fora / total) * 100 : 0;
+        return { nome, dentro: m.dentro, fora: m.fora, total, pctFora };
+      };
+
+      const etapas = [
+        mk("Estoque", metrics.estoque),
+        mk("Setup", metrics.setup),
+        mk("Transportes", metrics.transp)
+      ].filter(Boolean);
+
+      if (etapas.length === 0) {
+        return ["Nenhuma etapa com dados suficientes para gerar plano de ação."];
+      }
+
+      etapas.sort((a, b) => b.pctFora - a.pctFora);
+      const pior = etapas[0];
+      const segunda = etapas[1] || null;
+
+      const linhas = [];
+
+      // 🔥 Ponto crítico
+      linhas.push(
+        `🔎 **Ponto crítico:** ${pior.nome} concentra ${pior.fora} tarefas fora do prazo (${pior.pctFora.toFixed(1).replace(".", ",")}%).`
+      );
+
+      // 🎯 Causa provável
+      if (pior.nome === "Setup") {
+        linhas.push("🧩 **Causa provável:** Capacidade insuficiente no Setup e gargalo quando há alto volume de troca/locação.");
+      } else if (pior.nome === "Estoque") {
+        linhas.push("🧩 **Causa provável:** Baixa disponibilidade de materiais ou lentidão na produção.");
+      } else {
+        linhas.push("🧩 **Causa provável:** Roteirização inadequada, janelas curtas ou fila de entregas pendentes.");
+      }
+
+      // ⚡ Ações imediatas (48h)
+      linhas.push("⚡ **Ações imediatas (48h):**");
+      if (pior.nome === "Setup") {
+        linhas.push("- Priorizar tasks urgentes (troca/locação).");
+        linhas.push("- Criar lote único para tasks com mais de 3 dias.");
+        linhas.push("- Redirecionar carga para filiais com capacidade disponível.");
+      } else if (pior.nome === "Estoque") {
+        linhas.push("- Antecipar produção de materiais críticos.");
+        linhas.push("- Criar buffer emergencial para altas demandas.");
+        linhas.push("- Validar consumo real por filial.");
+      } else {
+        linhas.push("- Replanejar rotas do dia com foco nas pendências maiores.");
+        linhas.push("- Antecipar expedição para filiais com alta fila.");
+        linhas.push("- Criar contingência (motoboy/rota expressa).");
+      }
+
+      // 🛠 Ações estruturais (7–14 dias)
+      linhas.push("🛠 **Ações estruturais (7–14 dias):**");
+      if (pior.nome === "Setup") {
+        linhas.push("- Implementar triagem automática por tipo de solicitação.");
+        linhas.push("- Mapear tempos por operador e validar capacidade máxima.");
+        linhas.push("- Padronizar configuração de terminais para reduzir variação.");
+      } else if (pior.nome === "Estoque") {
+        linhas.push("- Revisar lead time do estoque vs produção.");
+        linhas.push("- Implementar sinalização antecipada de ruptura.");
+        linhas.push("- Definir estoque mínimo por filial.");
+      } else {
+        linhas.push("- Revisar política de janelas de entrega.");
+        linhas.push("- Construir malha otimizadora de transportes.");
+        linhas.push("- Avaliar SLA de parceiros externos (motoboy/rota).");
+      }
+
+      // Caso exista uma segunda etapa problemática, adicionar insight extra
+      if (segunda && segunda.pctFora >= 25) {
+        linhas.push(
+          `📌 **Atenção secundária:** ${segunda.nome} também apresenta alto volume fora do prazo (${segunda.fora}/${segunda.total}).`
+        );
+      }
+
+      return linhas;
+    }
+
+    // Alertas de negócio (regras críticas)
+    function computeBusinessAlerts(tasks) {
+      const agg = computeAggregates(tasks);
+      const stage = computeStageMetrics(tasks);
+
+      const alerts = [];
+
+      // Backlog crítico
+      if (agg.backlogTotal > 0 && agg.pctBacklogVencido >= 30) {
+        alerts.push(`Backlog vencido crítico: ${agg.pctBacklogVencido.toFixed(1).replace(".", ",")}% do backlog total já está vencido (${agg.backlogVencido}/${agg.backlogTotal}).`);
+      }
+
+      // SLA global baixo
+      if (agg.concluidas > 20 && agg.pctDentroConcluidas < 80) {
+        alerts.push(`SLA global abaixo da meta: apenas ${agg.pctDentroConcluidas.toFixed(1).replace(".", ",")}% das ${agg.concluidas} tarefas concluídas ficaram dentro do SLA.`);
+      }
+
+      // Setup crítico
+      const mkStage = (obj) => {
+        const total = obj.dentro + obj.fora;
+        const pctFora = total > 0 ? (obj.fora / total) * 100 : 0;
+        return { total, pctFora, fora: obj.fora };
+      };
+      
+      const setup = mkStage(stage.setup);
+      if (setup.total > 10 && setup.pctFora >= 40) {
+        alerts.push(`Setup é a principal fonte de atraso: ${setup.fora} tarefas fora do prazo (${setup.pctFora.toFixed(1).replace(".", ",")}% do total da etapa).`);
+      }
+
+      const estoque = mkStage(stage.estoque);
+      if (estoque.total > 10 && estoque.pctFora >= 40) {
+        alerts.push(`Estoque em situação crítica: ${estoque.fora} tarefas fora do prazo (${estoque.pctFora.toFixed(1).replace(".", ",")}% do total da etapa).`);
+      }
+
+      const transp = mkStage(stage.transp);
+      if (transp.total > 10 && transp.pctFora >= 40) {
+        alerts.push(`Transportes em situação crítica: ${transp.fora} tarefas fora do prazo (${transp.pctFora.toFixed(1).replace(".", ",")}% do total da etapa).`);
+      }
+
+      // Backlog crescente (se houver mais backlog que concluídas)
+      if (agg.backlogTotal > agg.concluidas && agg.concluidas > 0) {
+        alerts.push(`Backlog maior que volume de conclusões: ${agg.backlogTotal} tarefas em aberto vs ${agg.concluidas} concluídas no período.`);
+      }
+
+      return alerts;
+    }
+
+    // SLA por Tipo de Solicitação
+    function computeSlaByTipo(tasks) {
+      const map = {};
+      
+      for (const t of tasks) {
+        if (!t.isConcluida || !t.tipo) continue;
+        
+        const tipo = t.tipo;
+        if (!map[tipo]) {
+          map[tipo] = { dentro: 0, fora: 0, total: 0 };
+        }
+        
+        map[tipo].total++;
+        if (t.dentroSla) map[tipo].dentro++;
+        if (t.foraSla) map[tipo].fora++;
+      }
+      
+      return map;
+    }
+
+    // SLA por Etapa × Filial (para heatmap)
+    function computeStageByFilial(tasks) {
+      const filialMap = {};
+
+      for (const t of tasks) {
+        if (!t.dateCreated || !t.dueDate || !t.filialExpedicao) continue;
+
+        const filial = t.filialExpedicao;
+        if (!filialMap[filial]) {
+          filialMap[filial] = {
+            estoque: { dentro: 0, fora: 0 },
+            setup: { dentro: 0, fora: 0 },
+            transp: { dentro: 0, fora: 0 }
+          };
+        }
+
+        const totalDias = diffDays(t.dateCreated, t.dueDate);
+        if (totalDias == null || totalDias < 0) continue;
+
+        const slaEstoque = totalDias >= 1 ? 1 : Math.max(totalDias, 0);
+        const slaSetup = totalDias >= 2 ? 1 : Math.max(totalDias - slaEstoque, 0);
+        const slaTransp = Math.max(totalDias - slaEstoque - slaSetup, 0);
+
+        // Estoque
+        if (t.dataEstoque && slaEstoque > 0) {
+          const estStart = t.dataEstoque || t.dateCreated;
+          const estEnd = t.dataSetupSolic || t.dataTranspSolic || t.finalDate || t.dueDate;
+          const diasEst = diffDays(estStart, estEnd);
+          if (diasEst != null && diasEst >= 0) {
+            if (diasEst <= slaEstoque) filialMap[filial].estoque.dentro++;
+            else filialMap[filial].estoque.fora++;
+          }
+        }
+
+        // Setup
+        if (t.dataSetupSolic && slaSetup > 0) {
+          const setupStart = t.dataSetupSolic;
+          const setupEnd = t.dataTranspSolic || t.finalDate || t.dueDate;
+          const diasSetup = diffDays(setupStart, setupEnd);
+          if (diasSetup != null && diasSetup >= 0) {
+            if (diasSetup <= slaSetup) filialMap[filial].setup.dentro++;
+            else filialMap[filial].setup.fora++;
+          }
+        }
+
+        // Transportes
+        if (t.dataTranspSolic && slaTransp > 0) {
+          const transpStart = t.dataTranspSolic;
+          const transpEnd = t.dataConclusaoTransp || t.finalDate || t.dueDate;
+          const diasTransp = diffDays(transpStart, transpEnd);
+          if (diasTransp != null && diasTransp >= 0) {
+            if (diasTransp <= slaTransp) filialMap[filial].transp.dentro++;
+            else filialMap[filial].transp.fora++;
+          }
+        }
+      }
+
+      return filialMap;
+    }
+
+    // NOVO: Tendência Temporal por Etapa
+    // Agrupa tasks por semana ISO e calcula % dentro do prazo para cada etapa
+    function computeStageTrend(tasks) {
+      const weekMap = {};
+
+      for (const t of tasks) {
+        if (!t.dateCreated || !t.dueDate) continue;
+
+        // Usar data de criação para determinar semana
+        const weekKey = getWeekKey(t.dateCreated);
+        if (!weekMap[weekKey]) {
+          weekMap[weekKey] = {
+            estoque: { dentro: 0, fora: 0 },
+            setup: { dentro: 0, fora: 0 },
+            transp: { dentro: 0, fora: 0 }
+          };
+        }
+
+        const totalDias = diffDays(t.dateCreated, t.dueDate);
+        if (totalDias == null || totalDias < 0) continue;
+
+        const slaEstoque = totalDias >= 1 ? 1 : Math.max(totalDias, 0);
+        const slaSetup = totalDias >= 2 ? 1 : Math.max(totalDias - slaEstoque, 0);
+        const slaTransp = Math.max(totalDias - slaEstoque - slaSetup, 0);
+
+        // Estoque
+        if (t.dataEstoque && slaEstoque > 0) {
+          const estStart = t.dataEstoque || t.dateCreated;
+          const estEnd = t.dataSetupSolic || t.dataTranspSolic || t.finalDate || t.dueDate;
+          const diasEst = diffDays(estStart, estEnd);
+          if (diasEst != null && diasEst >= 0) {
+            if (diasEst <= slaEstoque) weekMap[weekKey].estoque.dentro++;
+            else weekMap[weekKey].estoque.fora++;
+          }
+        }
+
+        // Setup
+        if (t.dataSetupSolic && slaSetup > 0) {
+          const setupStart = t.dataSetupSolic;
+          const setupEnd = t.dataTranspSolic || t.finalDate || t.dueDate;
+          const diasSetup = diffDays(setupStart, setupEnd);
+          if (diasSetup != null && diasSetup >= 0) {
+            if (diasSetup <= slaSetup) weekMap[weekKey].setup.dentro++;
+            else weekMap[weekKey].setup.fora++;
+          }
+        }
+
+        // Transportes
+        if (t.dataTranspSolic && slaTransp > 0) {
+          const transpStart = t.dataTranspSolic;
+          const transpEnd = t.dataConclusaoTransp || t.finalDate || t.dueDate;
+          const diasTransp = diffDays(transpStart, transpEnd);
+          if (diasTransp != null && diasTransp >= 0) {
+            if (diasTransp <= slaTransp) weekMap[weekKey].transp.dentro++;
+            else weekMap[weekKey].transp.fora++;
+          }
+        }
+      }
+
+      // Ordenar semanas cronologicamente
+      const weeks = Object.keys(weekMap).sort();
+      return { weeks, weekMap };
+    }
+
+    // Helper: retorna chave "YYYY-Www" (semana ISO)
+    function getWeekKey(dateStr) {
+      if (!dateStr) return null;
+      const d = new Date(dateStr);
+      if (isNaN(d)) return null;
+
+      // ISO week: semana começa segunda-feira
+      const target = new Date(d.valueOf());
+      const dayNr = (d.getDay() + 6) % 7;
+      target.setDate(target.getDate() - dayNr + 3);
+      const firstThursday = target.valueOf();
+      target.setMonth(0, 1);
+      if (target.getDay() !== 4) {
+        target.setMonth(0, 1 + ((4 - target.getDay()) + 7) % 7);
+      }
+      const weekNo = 1 + Math.ceil((firstThursday - target) / 604800000);
+      return `${target.getFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+    }
+
+    function buildCurveData(tasks) {
+      if (tasks.length === 0) return { labels: [], totalAcum: [], conclAcum: [], dentroAcum: [] };
+
+      const mapCriado = {}, mapConcluido = {}, mapDentro = {};
+      const dateSet = new Set();
+
+      function keyFromDate(d) {
+        return (
+          d.getFullYear().toString() +
+          "-" +
+          (d.getMonth() + 1).toString().padStart(2, "0") +
+          "-" +
+          d.getDate().toString().padStart(2, "0")
+        );
+      }
+
+      for (const t of tasks) {
+        if (t.dateCreated) {
+          const k = keyFromDate(t.dateCreated);
+          dateSet.add(k);
+          mapCriado[k] = (mapCriado[k] || 0) + 1;
+        }
+        if (t.isConcluida && t.finalDate) {
+          const k = keyFromDate(t.finalDate);
+          dateSet.add(k);
+          mapConcluido[k] = (mapConcluido[k] || 0) + 1;
+          if (t.dentroSla) mapDentro[k] = (mapDentro[k] || 0) + 1;
+        }
+      }
+
+      const labels = Array.from(dateSet).sort();
+      const totalAcum = [], conclAcum = [], dentroAcum = [];
+      let accTotal = 0, accConcl = 0, accDentro = 0;
+
+      for (const k of labels) {
+        accTotal += mapCriado[k] || 0;
+        accConcl += mapConcluido[k] || 0;
+        accDentro += mapDentro[k] || 0;
+        totalAcum.push(accTotal);
+        conclAcum.push(accConcl);
+        dentroAcum.push(accDentro);
+      }
+
+      const prettyLabels = labels.map((k) => {
+        const [y, m, d] = k.split("-");
+        return d + "/" + m;
+      });
+
+      return { labels: prettyLabels, totalAcum, conclAcum, dentroAcum };
+    }
+
+    function renderChartsMain() {
+      const ctxCurve = document.getElementById("slaCurveChart").getContext("2d");
+      const ctxStatus = document.getElementById("slaStatusChart").getContext("2d");
+      const tasks = state.filtered;
+      const agg = computeAggregates(tasks);
+      const curve = buildCurveData(tasks);
+
+      if (state.charts.curve) state.charts.curve.destroy();
+      if (state.charts.status) state.charts.status.destroy();
+
+      state.charts.curve = new Chart(ctxCurve, {
+        type: "line",
+        data: {
+          labels: curve.labels,
+          datasets: [
+            {
+              label: "Criadas (acumulado)",
+              data: curve.totalAcum,
+              tension: 0.25,
+              borderWidth: 2,
+              borderColor: "#9ca9ff",
+              pointRadius: 0,
+              fill: false
+            },
+            {
+              label: "Concluídas (acumulado)",
+              data: curve.conclAcum,
+              tension: 0.25,
+              borderWidth: 2,
+              borderColor: "#46d39a",
+              pointRadius: 0,
+              fill: false
+            },
+            {
+              label: "Concluídas dentro do SLA",
+              data: curve.dentroAcum,
+              tension: 0.25,
+              borderWidth: 2,
+              borderColor: "#ffb547",
+              pointRadius: 0,
+              borderDash: [5, 5],
+              fill: false
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { mode: "index", intersect: false }
+          },
+          scales: {
+            x: {
+              grid: { color: "rgba(120,130,210,.25)" },
+              ticks: {
+                color: "#a5b0d6",
+                maxRotation: 0,
+                autoSkip: true,
+                maxTicksLimit: 8
+              }
+            },
+            y: {
+              grid: { color: "rgba(120,130,210,.25)" },
+              ticks: { color: "#a5b0d6", precision: 0 }
+            }
+          }
+        }
+      });
+
+      // Conversão para percentuais (concluídas e backlog)
+      const concl = agg.concluidas || 0;
+      const bklg = agg.backlogTotal || 0;
+
+      const conclDentroPct = concl ? (agg.dentroSla / concl) * 100 : 0;
+      const conclForaPct = concl ? (agg.foraSla / concl) * 100 : 0;
+
+      const backlogNoPrazoPct = bklg ? (agg.backlogNoPrazo / bklg) * 100 : 0;
+      const backlogVencidoPct = bklg ? (agg.backlogVencido / bklg) * 100 : 0;
+
+      state.charts.status = new Chart(ctxStatus, {
+        type: "bar",
+        data: {
+          labels: ["Concluídas", "Backlog"],
+          datasets: [
+            {
+              label: "Dentro / No prazo (%)",
+              data: [conclDentroPct, backlogNoPrazoPct],
+              borderWidth: 1,
+              borderColor: "#46d39a",
+              backgroundColor: "rgba(70,211,154,.65)"
+            },
+            {
+              label: "Fora / Vencido (%)",
+              data: [conclForaPct, backlogVencidoPct],
+              borderWidth: 1,
+              borderColor: "#ff5c7a",
+              backgroundColor: "rgba(255,92,122,.75)"
+            },
+            {
+              // Linha de meta de SLA (90% das concluídas dentro do prazo)
+              type: "line",
+              label: "Meta SLA (" + SLA_TARGET + "%)",
+              data: [SLA_TARGET, SLA_TARGET],
+              borderColor: "#ffffff",
+              borderWidth: 1.5,
+              borderDash: [6, 4],
+              pointRadius: 0,
+              yAxisID: "y"
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              labels: { color: "#a5b0d6", boxWidth: 10 }
+            },
+            tooltip: {
+              mode: "index",
+              intersect: false,
+              callbacks: {
+                label: function (ctx) {
+                  const label = ctx.dataset.label || "";
+                  const value = ctx.parsed.y || 0;
+                  return label + ": " + value.toFixed(1).replace(".", ",") + "%";
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { color: "#a5b0d6" }
+            },
+            y: {
+              grid: { color: "rgba(120,130,210,.25)" },
+              beginAtZero: true,
+              max: 100,
+              ticks: {
+                color: "#a5b0d6",
+                callback: (value) => value + "%"
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // NOVO: curva de distribuição dos dias de atendimento + percentis
+    // NOVO: curva de distribuição dos dias de atendimento
+    function buildDistribData(tasks) {
+      const concluidas = tasks.filter(
+        (t) => t.isConcluida && t.diasReais != null && t.diasReais >= 0
+      );
+
+      if (concluidas.length === 0)
+        return { labels: [], labelsDays: [], counts: [], curve: [], buckets: {}, mean: null, std: null };
+
+      const values = concluidas.map((t) => t.diasReais);
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+
+      const countsMap = {};
+      const buckets = {};
+
+      // monta buckets de tasks por dia
+      for (const t of concluidas) {
+        const d = t.diasReais;
+        countsMap[d] = (countsMap[d] || 0) + 1;
+        if (!buckets[d]) buckets[d] = [];
+        buckets[d].push(t);
+      }
+
+      const labelsDays = [];
+      const labels = [];
+      const counts = [];
+      for (let d = min; d <= max; d++) {
+        labelsDays.push(d);
+        labels.push(d + " d");
+        counts.push(countsMap[d] || 0);
+      }
+
+      // média e desvio padrão
+      const n = values.length;
+      const mean = values.reduce((a, b) => a + b, 0) / n;
+      const variance = values.reduce((acc, v) => acc + Math.pow(v - mean, 2), 0) / n;
+      const std = Math.sqrt(variance || 1);
+
+      // curva normal ajustada à altura das barras
+      const maxCount = Math.max(...counts);
+      const factorBase = 1 / (std * Math.sqrt(2 * Math.PI));
+
+      const pdfValues = labelsDays.map((x) => {
+        const z = (x - mean) / std;
+        return factorBase * Math.exp(-0.5 * z * z);
+      });
+      const maxPdf = Math.max(...pdfValues);
+      const scale = maxPdf > 0 ? maxCount / maxPdf : 1;
+
+      const curve = pdfValues.map((v) => v * scale);
+
+      return { labels, labelsDays, counts, curve, buckets, mean, std };
+    }
+
+    // NOVO: Histograma de tempo por etapa individual
+    function buildDistribDataStage(tasks, which) {
+      // which = "estoque" | "setup" | "transp"
+      const values = [];
+
+      for (const t of tasks) {
+        if (!t.dateCreated || !t.dueDate) continue;
+
+        const totalDias = diffDays(t.dateCreated, t.dueDate);
+        if (totalDias == null || totalDias < 0) continue;
+
+        const slaEstoque = totalDias >= 1 ? 1 : Math.max(totalDias, 0);
+        const slaSetup = totalDias >= 2 ? 1 : Math.max(totalDias - slaEstoque, 0);
+        const slaTransp = Math.max(totalDias - slaEstoque - slaSetup, 0);
+
+        if (which === "estoque" && t.dataEstoque && slaEstoque > 0) {
+          const estStart = t.dataEstoque || t.dateCreated;
+          const estEnd = t.dataSetupSolic || t.dataTranspSolic || t.finalDate || t.dueDate;
+          const diasEst = diffDays(estStart, estEnd);
+          if (diasEst != null && diasEst >= 0) values.push(diasEst);
+        } else if (which === "setup" && t.dataSetupSolic && slaSetup > 0) {
+          const setupStart = t.dataSetupSolic;
+          const setupEnd = t.dataTranspSolic || t.finalDate || t.dueDate;
+          const diasSetup = diffDays(setupStart, setupEnd);
+          if (diasSetup != null && diasSetup >= 0) values.push(diasSetup);
+        } else if (which === "transp" && t.dataTranspSolic && slaTransp > 0) {
+          const transpStart = t.dataTranspSolic;
+          const transpEnd = t.dataConclusaoTransp || t.finalDate || t.dueDate;
+          const diasTransp = diffDays(transpStart, transpEnd);
+          if (diasTransp != null && diasTransp >= 0) values.push(diasTransp);
+        }
+      }
+
+      if (values.length === 0) return { labels: [], counts: [] };
+
+      values.sort((a, b) => a - b);
+
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+
+      const countsMap = {};
+      for (const v of values) {
+        countsMap[v] = (countsMap[v] || 0) + 1;
+      }
+
+      const labels = [];
+      const counts = [];
+      for (let d = min; d <= max; d++) {
+        labels.push(d);
+        counts.push(countsMap[d] || 0);
+      }
+
+      return { labels, counts };
+    }
+
+    function renderDistribChart() {
+      const canvas = document.getElementById("slaDistribChart");
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+
+      const tasks = state.filtered;
+      const distrib = buildDistribData(tasks);
+      state.slaDistribBuckets = distrib.buckets || {};
+      state.slaDistribLabelsDays = distrib.labelsDays || [];
+
+      if (state.charts.distrib) state.charts.distrib.destroy();
+
+      if (!distrib.labels.length) {
+        state.charts.distrib = new Chart(ctx, {
+          type: "bar",
+          data: { labels: [], datasets: [] },
+          options: { responsive: true, maintainAspectRatio: false }
+        });
+        const resumoEl = document.getElementById("slaDistribResumo");
+        if (resumoEl) resumoEl.textContent =
+          "Carregue a planilha para ver P50 / P80 / P90 dos dias de atendimento.";
+        canvas.onclick = null;
+        return;
+      }
+
+      state.charts.distrib = new Chart(ctx, {
+        data: {
+          labels: distrib.labels,
+          datasets: [
+            {
+              type: "bar",
+              label: "Frequência de dias",
+              data: distrib.counts,
+              backgroundColor: "rgba(156,169,255,.6)",
+              borderColor: "#9ca9ff",
+              borderWidth: 1
+            },
+            {
+              type: "line",
+              label: "Curva normal ajustada",
+              data: distrib.curve,
+              borderColor: "#ffb547",
+              borderWidth: 2,
+              tension: 0.35,
+              pointRadius: 0
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { mode: "index", intersect: false }
+          },
+          scales: {
+            x: {
+              grid: { color: "rgba(120,130,210,.25)" },
+              ticks: { color: "#a5b0d6" }
+            },
+            y: {
+              grid: { color: "rgba(120,130,210,.25)" },
+              ticks: { color: "#a5b0d6", precision: 0 }
+            }
+          }
+        }
+      });
+
+      // Clique na barra -> abre modal com as tasks daquele dia
+      canvas.onclick = function (evt) {
+        if (!state.charts.distrib) return;
+        const points = state.charts.distrib.getElementsAtEventForMode(
+          evt,
+          "nearest",
+          { intersect: true },
+          true
+        );
+        if (!points.length) return;
+        const idx = points[0].index;
+        const day = state.slaDistribLabelsDays[idx];
+        const tasksForDay = state.slaDistribBuckets[day] || [];
+        openSlaDistribModal(day, tasksForDay);
+      };
+    }
+
+    function openSlaDistribModal(day, tasks) {
+      const backdrop = document.getElementById("slaDistribModal");
+      const subtitle = document.getElementById("slaDistribModalSubtitle");
+      const info = document.getElementById("slaDistribModalInfo");
+      const empty = document.getElementById("slaDistribModalEmpty");
+      const table = document.getElementById("slaDistribModalTable");
+      const tbody = document.getElementById("slaDistribModalBody");
+
+      state.slaDistribSelection.day = day;
+      state.slaDistribSelection.tasks = tasks || [];
+
+      subtitle.textContent =
+        "Tasks concluídas com " + day + " dia(s) reais de atendimento (Date Created → Data Final).";
+
+      if (!tasks || tasks.length === 0) {
+        info.textContent = "Nenhuma Task encontrada com " + day + " dia(s) reais de atendimento.";
+        empty.style.display = "block";
+        table.style.display = "none";
+        tbody.innerHTML = "";
+      } else {
+        info.textContent =
+          tasks.length.toLocaleString("pt-BR") +
+          " Task(s) com " +
+          day +
+          " dia(s) reais de atendimento.";
+        empty.style.display = "none";
+        table.style.display = "table";
+        tbody.innerHTML = "";
+
+        const maxRows = 500;
+        const slice = tasks.slice(0, maxRows);
+
+        for (const t of slice) {
+          const tr = document.createElement("tr");
+
+          const tdId = document.createElement("td");
+          tdId.textContent = t.taskId;
+          tr.appendChild(tdId);
+
+          const tdNome = document.createElement("td");
+          tdNome.textContent = t.taskName || "-";
+          tr.appendChild(tdNome);
+
+          const tdStatus = document.createElement("td");
+          tdStatus.textContent = t.status || "-";
+          tr.appendChild(tdStatus);
+
+          const tdTipo = document.createElement("td");
+          tdTipo.textContent = t.tipo || "-";
+          tr.appendChild(tdTipo);
+
+          const tdFilial = document.createElement("td");
+          tdFilial.textContent = t.filialExpedicao || "-";
+          tr.appendChild(tdFilial);
+
+          const tdCriada = document.createElement("td");
+          tdCriada.textContent = formatDate(t.dateCreated) || "-";
+          tr.appendChild(tdCriada);
+
+          const tdDue = document.createElement("td");
+          tdDue.textContent = formatDate(t.dueDate) || "-";
+          tr.appendChild(tdDue);
+
+          const tdFinal = document.createElement("td");
+          tdFinal.textContent = formatDate(t.finalDate) || "-";
+          tr.appendChild(tdFinal);
+
+          const tdDias = document.createElement("td");
+          tdDias.textContent = t.diasReais != null ? t.diasReais + " d" : "-";
+          tr.appendChild(tdDias);
+
+          const tdSit = document.createElement("td");
+          if (t.dentroSla) tdSit.textContent = "Dentro do SLA";
+          else if (t.foraSla) tdSit.textContent = "Fora do SLA";
+          else if (t.backlogVencido) tdSit.textContent = "Backlog vencido";
+          else if (t.backlogNoPrazo) tdSit.textContent = "Backlog no prazo";
+          else tdSit.textContent = "-";
+          tr.appendChild(tdSit);
+
+          tbody.appendChild(tr);
+        }
+      }
+
+      backdrop.classList.add("open");
+    }
+
+    function closeSlaDistribModal() {
+      const backdrop = document.getElementById("slaDistribModal");
+      if (backdrop) backdrop.classList.remove("open");
+    }
+
+    function exportSlaDistribDayToExcel() {
+      const sel = state.slaDistribSelection;
+      if (!sel || !sel.tasks || sel.tasks.length === 0) return;
+
+      const day = sel.day;
+      const tasks = sel.tasks;
+
+      const rows = [];
+      rows.push([
+        "Task ID",
+        "Nome",
+        "Status",
+        "Tipo",
+        "Filial Expedição",
+        "Data Criada",
+        "Due Date",
+        "Data Final",
+        "Dias reais",
+        "Situação SLA"
+      ]);
+
+      tasks.forEach((t) => {
+        let situacao = "-";
+        if (t.dentroSla) situacao = "Dentro do SLA";
+        else if (t.foraSla) situacao = "Fora do SLA";
+        else if (t.backlogVencido) situacao = "Backlog vencido";
+        else if (t.backlogNoPrazo) situacao = "Backlog no prazo";
+
+        rows.push([
+          t.taskId,
+          t.taskName || "",
+          t.status || "",
+          t.tipo || "",
+          t.filialExpedicao || "",
+          formatDate(t.dateCreated),
+          formatDate(t.dueDate),
+          formatDate(t.finalDate),
+          t.diasReais != null ? t.diasReais : "",
+          situacao
+        ]);
+      });
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      XLSX.utils.book_append_sheet(wb, ws, "SLA_" + day + "d");
+      XLSX.writeFile(wb, "sla_dia_" + day + "d.xlsx");
+    }
+
+    // ======================================================
+    // SLA POR ETAPA · ESTOQUE / SETUP / TRANSPORTES
+    // ======================================================
+    function computeSlaPorEtapa(tasks) {
+      const result = {
+        Estoque: { dentro: 0, fora: 0 },
+        Setup: { dentro: 0, fora: 0 },
+        Transportes: { dentro: 0, fora: 0 },
+        buckets: {
+          Estoque: { dentro: [], fora: [] },
+          Setup: { dentro: [], fora: [] },
+          Transportes: { dentro: [], fora: [] }
+        }
+      };
+
+      const hoje = new Date();
+
+      for (const t of tasks) {
+        // ESTOQUE
+        if (t.dataEstoque) {
+          const inicioE = t.dataEstoque;
+          const fimE =
+            t.dataConclusaoEstoque ||
+            t.dataSetupSolic ||
+            t.dataTranspSolic ||
+            t.finalDate ||
+            hoje;
+
+          const diasE = diffDays(inicioE, fimE);
+          const dentro = diasE != null && diasE <= 1;
+
+          if (dentro) {
+            result.Estoque.dentro++;
+            result.buckets.Estoque.dentro.push(t);
+          } else {
+            result.Estoque.fora++;
+            result.buckets.Estoque.fora.push(t);
+          }
+        }
+
+        // SETUP
+        if (t.dataSetupSolic) {
+          const inicioS = t.dataSetupSolic;
+          const fimS =
+            t.dataConclusaoSetup ||
+            t.dataTranspSolic ||
+            t.finalDate ||
+            hoje;
+
+          const diasS = diffDays(inicioS, fimS);
+          const dentro = diasS != null && diasS <= 1;
+
+          if (dentro) {
+            result.Setup.dentro++;
+            result.buckets.Setup.dentro.push(t);
+          } else {
+            result.Setup.fora++;
+            result.buckets.Setup.fora.push(t);
+          }
+        }
+
+        // TRANSPORTES
+        const tipoFreteNorm = (t.tipoFrete || "").toLowerCase();
+        const isTransporte =
+          tipoFreteNorm.includes("transport") ||
+          t.dataTranspSolic ||
+          t.dataConclusaoTransp;
+
+        if (isTransporte) {
+          const inicioT =
+            t.dataTranspSolic ||
+            t.dataConclusaoSetup ||
+            t.dataConclusaoEstoque ||
+            t.dateCreated ||
+            hoje;
+
+          const fimT = t.dataConclusaoTransp || t.finalDate || hoje;
+
+          const diasT = diffDays(inicioT, fimT);
+
+          let limiteTransp = 1;
+          if (t.slaDias != null) {
+            limiteTransp = Math.max(1, t.slaDias - 2);
+          }
+
+          const dentro = diasT != null && diasT <= limiteTransp;
+
+          if (dentro) {
+            result.Transportes.dentro++;
+            result.buckets.Transportes.dentro.push(t);
+          } else {
+            result.Transportes.fora++;
+            result.buckets.Transportes.fora.push(t);
+          }
+        }
+      }
+
+      return result;
+    }
+
+    // Gráfico de SLA por etapa - com clique para modal
+    function renderStageChart() {
+      const canvas = document.getElementById("slaStageChart");
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+
+      const tasks = state.filtered;
+      const etapa = computeSlaPorEtapa(tasks);
+
+      // salvar buckets para o modal
+      state.slaStageBuckets = etapa.buckets;
+
+      if (state.charts.stage) state.charts.stage.destroy();
+
+      const labels = ["Estoque", "Setup", "Transportes"];
+
+      state.charts.stage = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: "Dentro do prazo",
+              data: [
+                etapa.Estoque.dentro,
+                etapa.Setup.dentro,
+                etapa.Transportes.dentro
+              ],
+              borderWidth: 1,
+              borderColor: "#46d39a",
+              backgroundColor: "rgba(70,211,154,.7)"
+            },
+            {
+              label: "Fora do prazo",
+              data: [
+                etapa.Estoque.fora,
+                etapa.Setup.fora,
+                etapa.Transportes.fora
+              ],
+              borderWidth: 1,
+              borderColor: "#ff5c7a",
+              backgroundColor: "rgba(255,92,122,.8)"
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: "#a5b0d6", boxWidth: 10 } },
+            tooltip: { mode: "index", intersect: false }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: "#a5b0d6" } },
+            y: { grid: { color: "rgba(120,130,210,.25)" }, ticks: { color: "#a5b0d6", precision: 0 } }
+          }
+        }
+      });
+
+      // Insight automático (mantém)
+      const insightEl = document.getElementById("slaStageInsight");
+      if (insightEl) {
+        const metrics = computeStageMetrics(tasks);
+        insightEl.textContent = buildStageInsightV2(metrics);
+      }
+
+      // Clique na barra → abre modal Etapa × (dentro/fora)
+      canvas.onclick = function (evt) {
+        if (!state.charts.stage) return;
+        const points = state.charts.stage.getElementsAtEventForMode(
+          evt,
+          "nearest",
+          { intersect: true },
+          true
+        );
+        if (!points.length) return;
+
+        const first = points[0];
+        const datasetIndex = first.datasetIndex; // 0=dentro, 1=fora
+        const index = first.index;
+
+        const etapaNome = labels[index];
+        const bucketKey = datasetIndex === 0 ? "dentro" : "fora";
+        const tasksBucket =
+          state.slaStageBuckets[etapaNome] && state.slaStageBuckets[etapaNome][bucketKey]
+            ? state.slaStageBuckets[etapaNome][bucketKey]
+            : [];
+
+        openSlaEtapaModal(etapaNome, bucketKey, tasksBucket);
+      };
+    }
+
+    function openSlaEtapaModal(etapaNome, bucketKey, tasks) {
+      const backdrop = document.getElementById("slaEtapaModal");
+      const subtitle = document.getElementById("slaEtapaModalSubtitle");
+      const info = document.getElementById("slaEtapaModalInfo");
+      const empty = document.getElementById("slaEtapaModalEmpty");
+      const table = document.getElementById("slaEtapaModalTable");
+      const tbody = document.getElementById("slaEtapaModalBody");
+
+      state.slaEtapaSelection.etapa = etapaNome;
+      state.slaEtapaSelection.bucket = bucketKey;
+      state.slaEtapaSelection.tasks = tasks || [];
+
+      const bucketLabel = bucketKey === "dentro" ? "Dentro do prazo" : "Fora do prazo";
+      subtitle.textContent = `Tasks classificadas em ${etapaNome} · ${bucketLabel} (SLA por etapa).`;
+
+      if (!tasks || tasks.length === 0) {
+        info.textContent = `Nenhuma Task encontrada para ${etapaNome} · ${bucketLabel}.`;
+        empty.style.display = "block";
+        table.style.display = "none";
+        tbody.innerHTML = "";
+      } else {
+        info.textContent = `${tasks.length.toLocaleString("pt-BR")} Task(s) em ${etapaNome} · ${bucketLabel}.`;
+        empty.style.display = "none";
+        table.style.display = "table";
+        tbody.innerHTML = "";
+
+        const maxRows = 500;
+        const slice = tasks.slice(0, maxRows);
+
+        for (const t of slice) {
+          const tr = document.createElement("tr");
+
+          const tdId = document.createElement("td");
+          tdId.textContent = t.taskId;
+          tr.appendChild(tdId);
+
+          const tdNome = document.createElement("td");
+          tdNome.textContent = t.taskName || "-";
+          tr.appendChild(tdNome);
+
+          const tdStatus = document.createElement("td");
+          tdStatus.textContent = t.status || "-";
+          tr.appendChild(tdStatus);
+
+          const tdTipo = document.createElement("td");
+          tdTipo.textContent = t.tipo || "-";
+          tr.appendChild(tdTipo);
+
+          const tdEtapa = document.createElement("td");
+          tdEtapa.textContent = etapaNome;
+          tr.appendChild(tdEtapa);
+
+          const tdFilial = document.createElement("td");
+          tdFilial.textContent = t.filialExpedicao || "-";
+          tr.appendChild(tdFilial);
+
+          const tdCriada = document.createElement("td");
+          tdCriada.textContent = formatDate(t.dateCreated) || "-";
+          tr.appendChild(tdCriada);
+
+          const tdDue = document.createElement("td");
+          tdDue.textContent = formatDate(t.dueDate) || "-";
+          tr.appendChild(tdDue);
+
+          const tdFinal = document.createElement("td");
+          tdFinal.textContent = formatDate(t.finalDate) || "-";
+          tr.appendChild(tdFinal);
+
+          const tdDias = document.createElement("td");
+          tdDias.textContent = t.diasReais != null ? t.diasReais + " d" : "-";
+          tr.appendChild(tdDias);
+
+          const tdSit = document.createElement("td");
+          if (t.dentroSla) tdSit.textContent = "Dentro do SLA (global)";
+          else if (t.foraSla) tdSit.textContent = "Fora do SLA (global)";
+          else if (t.backlogVencido) tdSit.textContent = "Backlog vencido";
+          else if (t.backlogNoPrazo) tdSit.textContent = "Backlog no prazo";
+          else tdSit.textContent = "-";
+          tr.appendChild(tdSit);
+
+          tbody.appendChild(tr);
+        }
+      }
+
+      backdrop.classList.add("open");
+    }
+
+    function closeSlaEtapaModal() {
+      const backdrop = document.getElementById("slaEtapaModal");
+      if (backdrop) backdrop.classList.remove("open");
+    }
+
+    function exportSlaEtapaBucketToExcel() {
+      const sel = state.slaEtapaSelection;
+      if (!sel || !sel.tasks || sel.tasks.length === 0) return;
+
+      const etapaNome = sel.etapa || "Etapa";
+      const bucketKey = sel.bucket || "bucket";
+      const bucketLabel = bucketKey === "dentro" ? "dentro" : "fora";
+      const tasks = sel.tasks;
+
+      const rows = [];
+      rows.push([
+        "Task ID",
+        "Nome",
+        "Status",
+        "Tipo",
+        "Etapa",
+        "Filial Expedição",
+        "Data Criada",
+        "Due Date",
+        "Data Final",
+        "Dias reais",
+        "Situação SLA (global)"
+      ]);
+
+      tasks.forEach((t) => {
+        let situacao = "-";
+        if (t.dentroSla) situacao = "Dentro do SLA (global)";
+        else if (t.foraSla) situacao = "Fora do SLA (global)";
+        else if (t.backlogVencido) situacao = "Backlog vencido";
+        else if (t.backlogNoPrazo) situacao = "Backlog no prazo";
+
+        rows.push([
+          t.taskId,
+          t.taskName || "",
+          t.status || "",
+          t.tipo || "",
+          etapaNome,
+          t.filialExpedicao || "",
+          formatDate(t.dateCreated),
+          formatDate(t.dueDate),
+          formatDate(t.finalDate),
+          t.diasReais != null ? t.diasReais : "",
+          situacao
+        ]);
+      });
+
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+      XLSX.utils.book_append_sheet(wb, ws, etapaNome);
+      XLSX.writeFile(
+        wb,
+        "sla_etapa_" + etapaNome.toLowerCase() + "_" + bucketLabel + ".xlsx"
+      );
+    }
+
+    // ======================================================
+    // HEATMAP DE RISCO · ETAPA × FILIAL DE EXPEDIÇÃO
+    // Considera somente Estoque, Setup e Transportes
+    // ======================================================
+    function riscoToHsl(score) {
+      const s = Math.max(0, Math.min(100, score));
+      const hue = 120 - (120 * s) / 100; // 120 (verde) → 0 (vermelho)
+      return "hsl(" + hue + ", 80%, 30%)";
+    }
+
+    // riscoToRgba removido (não utilizado após exclusão do cluster de risco)
+
+    // Removido: renderHeatmapEtapaFilial (substituído pelo gráfico de bolhas)
+
+    // Gráfico de SLA por Tipo de Solicitação
+    function renderSlaTipoChart() {
+      const canvas = document.getElementById("slaTipoChart");
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+
+      const tasks = state.filtered;
+      const tipoMap = computeSlaByTipo(tasks);
+
+      if (state.charts.tipo) state.charts.tipo.destroy();
+
+      const tipos = Object.keys(tipoMap);
+      if (tipos.length === 0) {
+        state.charts.tipo = new Chart(ctx, {
+          type: "bar",
+          data: { labels: [], datasets: [] },
+          options: { responsive: true, maintainAspectRatio: false }
+        });
+        return;
+      }
+
+      const labels = tipos;
+      const dentroValues = tipos.map(t => tipoMap[t].dentro || 0);
+      const foraValues = tipos.map(t => tipoMap[t].fora || 0);
+
+      state.charts.tipo = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: "Dentro do SLA",
+              data: dentroValues,
+              borderWidth: 1,
+              borderColor: "#46d39a",
+              backgroundColor: "rgba(70,211,154,.75)"
+            },
+            {
+              label: "Fora do SLA",
+              data: foraValues,
+              borderWidth: 1,
+              borderColor: "#ff5c7a",
+              backgroundColor: "rgba(255,92,122,.85)"
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              labels: { color: "#a5b0d6", boxWidth: 10 }
+            },
+            tooltip: {
+              mode: "index",
+              intersect: false,
+              callbacks: {
+                label: function (ctx) {
+                  const label = ctx.dataset.label || "";
+                  const value = ctx.parsed.y || 0;
+                  const tipo = ctx.label;
+                  const total = tipoMap[tipo].total;
+                  const pct = total > 0 ? ((value / total) * 100).toFixed(1).replace(".", ",") : "0";
+                  return `${label}: ${value} (${pct}%)`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              grid: { display: false },
+              ticks: { color: "#a5b0d6" }
+            },
+            y: {
+              grid: { color: "rgba(120,130,210,.25)" },
+              beginAtZero: true,
+              ticks: {
+                color: "#a5b0d6",
+                precision: 0,
+                callback: (value) => value.toLocaleString("pt-BR")
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Cluster de risco removido: buildEtapaClusterData, renderEtapaClusterChart
+    // Renderizar heatmap Etapa × Filial
+    function renderStageFilialHeatmap() {
+      const tbody = document.getElementById("heatmapBody");
+      if (!tbody) return;
+
+      const tasks = state.filtered;
+      const filialMap = computeStageByFilial(tasks);
+      const filiais = Object.keys(filialMap).sort();
+
+      if (filiais.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="padding:20px; text-align:center; color:#8892b8;">Nenhum dado disponível</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = "";
+
+      for (const filial of filiais) {
+        const data = filialMap[filial];
+        const tr = document.createElement("tr");
+
+        // Filial
+        const tdFilial = document.createElement("td");
+        tdFilial.textContent = filial;
+        tdFilial.style.cssText = "padding:12px; border-bottom:1px solid #2a2544;";
+        tr.appendChild(tdFilial);
+
+        // Estoque
+        const tdEstoque = document.createElement("td");
+        const estTotal = data.estoque.dentro + data.estoque.fora;
+        const estPctFora = estTotal > 0 ? (data.estoque.fora / estTotal) * 100 : 0;
+        tdEstoque.textContent = estTotal > 0 ? `${estPctFora.toFixed(1).replace(".", ",")}%` : "-";
+        tdEstoque.style.cssText = `padding:12px; text-align:center; border-bottom:1px solid #2a2544; background:rgba(255,92,122,${estPctFora / 100});`;
+        tr.appendChild(tdEstoque);
+
+        // Setup
+        const tdSetup = document.createElement("td");
+        const setupTotal = data.setup.dentro + data.setup.fora;
+        const setupPctFora = setupTotal > 0 ? (data.setup.fora / setupTotal) * 100 : 0;
+        tdSetup.textContent = setupTotal > 0 ? `${setupPctFora.toFixed(1).replace(".", ",")}%` : "-";
+        tdSetup.style.cssText = `padding:12px; text-align:center; border-bottom:1px solid #2a2544; background:rgba(255,92,122,${setupPctFora / 100});`;
+        tr.appendChild(tdSetup);
+
+        // Transportes
+        const tdTransp = document.createElement("td");
+        const transpTotal = data.transp.dentro + data.transp.fora;
+        const transpPctFora = transpTotal > 0 ? (data.transp.fora / transpTotal) * 100 : 0;
+        tdTransp.textContent = transpTotal > 0 ? `${transpPctFora.toFixed(1).replace(".", ",")}%` : "-";
+        tdTransp.style.cssText = `padding:12px; text-align:center; border-bottom:1px solid #2a2544; background:rgba(255,92,122,${transpPctFora / 100});`;
+        tr.appendChild(tdTransp);
+
+        tbody.appendChild(tr);
+      }
+    }
+
+    // NOVO: Renderizar Tendência Temporal por Etapa
+    function renderStageTrendChart() {
+      if (state.charts.trend) {
+        state.charts.trend.destroy();
+        state.charts.trend = null;
+      }
+
+      const canvas = document.getElementById("stageTrendChart");
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+
+      const tasks = state.filtered;
+      const { weeks, weekMap } = computeStageTrend(tasks);
+
+      if (weeks.length === 0) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.font = "14px Inter";
+        ctx.fillStyle = "#8892b8";
+        ctx.textAlign = "center";
+        ctx.fillText("Sem dados temporais", canvas.width / 2, canvas.height / 2);
+        return;
+      }
+
+      // Construir datasets: 3 linhas (Estoque, Setup, Transportes)
+      const estoqueData = [], setupData = [], transpData = [];
+
+      for (const w of weeks) {
+        const data = weekMap[w];
+        const estTotal = data.estoque.dentro + data.estoque.fora;
+        const setupTotal = data.setup.dentro + data.setup.fora;
+        const transpTotal = data.transp.dentro + data.transp.fora;
+
+        estoqueData.push(estTotal > 0 ? (data.estoque.dentro / estTotal) * 100 : null);
+        setupData.push(setupTotal > 0 ? (data.setup.dentro / setupTotal) * 100 : null);
+        transpData.push(transpTotal > 0 ? (data.transp.dentro / transpTotal) * 100 : null);
+      }
+
+      state.charts.trend = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: weeks,
+          datasets: [
+            {
+              label: "Estoque",
+              data: estoqueData,
+              borderColor: "rgba(112, 195, 255, 1)",
+              backgroundColor: "rgba(112, 195, 255, 0.1)",
+              borderWidth: 2,
+              tension: 0.3,
+              fill: false,
+              spanGaps: true
+            },
+            {
+              label: "Setup",
+              data: setupData,
+              borderColor: "rgba(255, 181, 71, 1)",
+              backgroundColor: "rgba(255, 181, 71, 0.1)",
+              borderWidth: 2,
+              tension: 0.3,
+              fill: false,
+              spanGaps: true
+            },
+            {
+              label: "Transportes",
+              data: transpData,
+              borderColor: "rgba(186, 142, 255, 1)",
+              backgroundColor: "rgba(186, 142, 255, 0.1)",
+              borderWidth: 2,
+              tension: 0.3,
+              fill: false,
+              spanGaps: true
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: true, position: "top", labels: { color: "#d0d6f3" } },
+            tooltip: {
+              callbacks: {
+                label: function (context) {
+                  const val = context.parsed.y;
+                  return val != null ? `${context.dataset.label}: ${val.toFixed(1).replace(".", ",")}% dentro do prazo` : null;
+                }
+              }
+            }
+          },
+          scales: {
+            x: { ticks: { color: "#8892b8" }, grid: { color: "rgba(255,255,255,0.05)" } },
+            y: {
+              min: 0,
+              max: 100,
+              ticks: {
+                color: "#8892b8",
+                callback: (v) => v + "%"
+              },
+              grid: { color: "rgba(255,255,255,0.05)" }
+            }
+          }
+        }
+      });
+    }
+
+    // NOVO: Renderizar Distribuição de Tempo por Etapa Individual
+    function renderStageDistribChart(which) {
+      if (state.charts.stageDistrib) {
+        state.charts.stageDistrib.destroy();
+        state.charts.stageDistrib = null;
+      }
+
+      const canvas = document.getElementById("stageDistribChart");
+      if (!canvas) return;
+      const ctx = canvas.getContext("2d");
+
+      const tasks = state.filtered;
+      const distrib = buildDistribDataStage(tasks, which);
+
+      if (distrib.labels.length === 0) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.font = "14px Inter";
+        ctx.fillStyle = "#8892b8";
+        ctx.textAlign = "center";
+        ctx.fillText("Sem dados para esta etapa", canvas.width / 2, canvas.height / 2);
+        return;
+      }
+
+      const labelName = which === "estoque" ? "Estoque" : which === "setup" ? "Setup" : "Transportes";
+      const barColor = which === "estoque" ? "rgba(112, 195, 255, 0.7)" : which === "setup" ? "rgba(255, 181, 71, 0.7)" : "rgba(186, 142, 255, 0.7)";
+
+      state.charts.stageDistrib = new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: distrib.labels.map(d => `${d}d`),
+          datasets: [
+            {
+              label: `${labelName} (tarefas)`,
+              data: distrib.counts,
+              backgroundColor: barColor,
+              borderWidth: 0
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: true, position: "top", labels: { color: "#d0d6f3" } },
+            tooltip: {
+              callbacks: {
+                label: function (context) {
+                  return `${context.parsed.y} tarefas levaram ${distrib.labels[context.dataIndex]} dia(s)`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              title: { display: true, text: "Dias na etapa", color: "#d0d6f3" },
+              ticks: { color: "#8892b8" },
+              grid: { color: "rgba(255,255,255,0.05)" }
+            },
+            y: {
+              title: { display: true, text: "Quantidade de tarefas", color: "#d0d6f3" },
+              ticks: { color: "#8892b8", stepSize: 1 },
+              grid: { color: "rgba(255,255,255,0.05)" }
+            }
+          }
+        }
+      });
+    }
+
+    function renderAuditTable() {
+      const wrapperEmpty = document.getElementById("auditEmpty");
+      const table = document.getElementById("auditTable");
+      const tbody = document.getElementById("auditBody");
+      
+      // Aplicar busca
+      let tasks = state.filtered;
+      const searchTerm = state.auditSearchTerm.toLowerCase();
+      if (searchTerm) {
+        tasks = tasks.filter(t => {
+          return (
+            (t.taskId && t.taskId.toLowerCase().includes(searchTerm)) ||
+            (t.taskName && t.taskName.toLowerCase().includes(searchTerm))
+          );
+        });
+      }
+
+      // Aplicar ordenação
+      if (state.auditSort.key) {
+        const key = state.auditSort.key;
+        const dir = state.auditSort.direction === "asc" ? 1 : -1;
+        tasks = [...tasks].sort((a, b) => {
+          let valA = a[key];
+          let valB = b[key];
+          if (valA == null) valA = "";
+          if (valB == null) valB = "";
+          if (valA < valB) return -1 * dir;
+          if (valA > valB) return 1 * dir;
+          return 0;
+        });
+      } else {
+        // NOVO: Ordenação padrão por risco (maior risco primeiro)
+        tasks = [...tasks].sort((a, b) => (b.risco || 0) - (a.risco || 0));
+      }
+
+      if (!tasks || tasks.length === 0) {
+        wrapperEmpty.style.display = "block";
+        table.style.display = "none";
+        tbody.innerHTML = "";
+        return;
+      }
+
+      wrapperEmpty.style.display = "none";
+      table.style.display = "table";
+      tbody.innerHTML = "";
+
+      const maxRows = 1000;
+      const slice = tasks.slice(0, maxRows);
+
+      for (const t of slice) {
+        const tr = document.createElement("tr");
+
+        const tdId = document.createElement("td");
+        tdId.textContent = t.taskId;
+        tr.appendChild(tdId);
+
+        const tdName = document.createElement("td");
+        tdName.textContent = t.taskName;
+        tr.appendChild(tdName);
+
+        const tdStatus = document.createElement("td");
+        tdStatus.textContent = t.status;
+        tr.appendChild(tdStatus);
+
+        const tdTipo = document.createElement("td");
+        tdTipo.textContent = t.tipo || "-";
+        tr.appendChild(tdTipo);
+
+  // NOVAS COLUNAS
+  const tdStatusEst = document.createElement("td");
+  tdStatusEst.textContent = t.statusEstoque || "-";
+  tr.appendChild(tdStatusEst);
+
+  const tdStatusTransp = document.createElement("td");
+  tdStatusTransp.textContent = t.statusTransp || "-";
+  tr.appendChild(tdStatusTransp);
+
+  const tdTipoFrete = document.createElement("td");
+  tdTipoFrete.textContent = t.tipoFrete || "-";
+  tr.appendChild(tdTipoFrete);
+
+  const tdDataRetirada = document.createElement("td");
+  tdDataRetirada.textContent = formatDate(t.dataRetirada) || "-";
+  tr.appendChild(tdDataRetirada);
+
+        const tdFilialExp = document.createElement("td");
+        tdFilialExp.textContent = t.filialExpedicao || "-";
+        tr.appendChild(tdFilialExp);
+
+        const tdFilialOp = document.createElement("td");
+        tdFilialOp.textContent = t.filialOperacao || "-";
+        tr.appendChild(tdFilialOp);
+
+        const tdCriada = document.createElement("td");
+        tdCriada.textContent = formatDate(t.dateCreated) || "-";
+        tr.appendChild(tdCriada);
+
+        const tdDue = document.createElement("td");
+        tdDue.textContent = formatDate(t.dueDate) || "-";
+        tr.appendChild(tdDue);
+
+        const tdFinal = document.createElement("td");
+        tdFinal.textContent = formatDate(t.finalDate) || "-";
+        tr.appendChild(tdFinal);
+
+        // NOVO: Coluna de risco
+        const tdRisco = document.createElement("td");
+        const badge = document.createElement("span");
+
+        // cor do risco
+        if (t.risco >= 80) {
+          badge.style.background = "#ff4d4d";
+          badge.style.color = "white";
+        } else if (t.risco >= 50) {
+          badge.style.background = "#ffcc00";
+          badge.style.color = "#000";
+        } else {
+          badge.style.background = "#5cd65c";
+          badge.style.color = "#000";
+        }
+
+        badge.style.padding = "2px 8px";
+        badge.style.borderRadius = "10px";
+        badge.style.fontSize = "11px";
+        badge.style.fontWeight = "bold";
+        badge.textContent = t.risco;
+
+        tdRisco.appendChild(badge);
+        tr.appendChild(tdRisco);
+
+        const tdClass = document.createElement("td");
+        let tag;
+        if (t.isConcluida) {
+          if (t.dentroSla) {
+            tag = document.createElement("span");
+            tag.className = "tag-sla-ok";
+            tag.textContent = "Concluído · dentro do SLA";
+          } else if (t.foraSla) {
+            tag = document.createElement("span");
+            tag.className = "tag-sla-nok";
+            tag.textContent = "Concluído · fora do SLA";
+          } else {
+            tag = document.createElement("span");
+            tag.className = "tag-backlog";
+            tag.textContent = "Concluído · sem due date";
+          }
+        } else {
+          if (t.isEmReversa) {
+            // NOVO: backlog "parado no cliente"
+            tag = document.createElement("span");
+            tag.className = "tag-neutral";
+            tag.textContent = "Backlog · em reversa (cliente)";
+          } else if (t.backlogNoPrazo) {
+            tag = document.createElement("span");
+            tag.className = "tag-backlog";
+            tag.textContent = "Backlog · no prazo";
+          } else if (t.backlogVencido) {
+            tag = document.createElement("span");
+            tag.className = "tag-sla-nok";
+            tag.textContent = "Backlog · vencido";
+          } else {
+            tag = document.createElement("span");
+            tag.className = "tag-backlog";
+            tag.textContent = "Backlog · sem due date";
+          }
+        }
+        tdClass.appendChild(tag);
+        tr.appendChild(tdClass);
+
+        const tdSlaDias = document.createElement("td");
+        tdSlaDias.textContent = t.slaDias != null ? t.slaDias + " d" : "-";
+        tr.appendChild(tdSlaDias);
+
+        const tdReais = document.createElement("td");
+        tdReais.textContent = t.diasReais != null ? t.diasReais + " d" : "-";
+        tr.appendChild(tdReais);
+
+        tbody.appendChild(tr);
+      }
+    }
+
+    function updateSummaryCards() {
+      const tasks = state.filtered;
+      const agg = computeAggregates(tasks);
+      const total = agg.total;
+
+      const elTotal = document.getElementById("metricTotal");
+      const elTotalDet = document.getElementById("metricTotalDetalhe");
+      const elPillPeriodo = document.getElementById("pillPeriodo");
+
+      const elConc = document.getElementById("metricConcluidas");
+      const elConcDet = document.getElementById("metricConcluidasDetalhe");
+      const elPillConcPct = document.getElementById("pillConcluidasPct");
+
+      const elBacklog = document.getElementById("metricBacklog");
+      const elBacklogDet = document.getElementById("metricBacklogDetalhe");
+      const elPillBacklog = document.getElementById("pillBacklogSplit");
+
+      const elSlaSplit = document.getElementById("metricSlaSplit");
+      const elSlaSplitDet = document.getElementById("metricSlaSplitDetalhe");
+      const elPillSlaSaude = document.getElementById("pillSlaSaude");
+
+      const chipsResumo = document.getElementById("chipsResumo").children;
+
+      if (total === 0) {
+        elTotal.textContent = "–";
+        elTotalDet.innerHTML = "Aguardando planilha.";
+        elPillPeriodo.textContent = "Sem dados";
+
+        elConc.textContent = "–";
+        elConcDet.textContent = "–";
+        elPillConcPct.textContent = "–";
+
+        elBacklog.textContent = "–";
+        elBacklogDet.textContent = "–";
+        elPillBacklog.textContent = "–";
+
+        elSlaSplit.textContent = "–";
+        elSlaSplitDet.textContent = "–";
+        elPillSlaSaude.textContent = "–";
+
+        chipsResumo[0].textContent = "Total: –";
+        chipsResumo[1].textContent = "Dentro do SLA: –";
+        chipsResumo[2].textContent = "Fora do SLA: –";
+        return;
+      }
+
+      const meses = Array.from(
+        new Set(tasks.map((t) => t.mesKey).filter(Boolean))
+      ).sort();
+      let periodoLabel = "";
+      if (meses.length === 1) periodoLabel = monthLabel(meses[0]);
+      else if (meses.length > 1)
+        periodoLabel = monthLabel(meses[0]) + " · " + monthLabel(meses[meses.length - 1]);
+
+      elPillPeriodo.textContent = periodoLabel || "Período dinâmico";
+
+      elTotal.textContent = total.toLocaleString("pt-BR");
+      elTotalDet.textContent =
+        agg.concluidas.toLocaleString("pt-BR") +
+        " concluídas · " +
+        agg.backlogTotal.toLocaleString("pt-BR") +
+        " em aberto";
+
+      elConc.textContent = agg.concluidas.toLocaleString("pt-BR");
+      elConcDet.textContent =
+        agg.dentroSla.toLocaleString("pt-BR") +
+        " dentro do SLA · " +
+        agg.foraSla.toLocaleString("pt-BR") +
+        " fora do SLA";
+      elPillConcPct.textContent =
+        (agg.pctConcluidas || 0).toFixed(1).replace(".", ",") + "% do total";
+
+      elBacklog.textContent = agg.backlogTotal.toLocaleString("pt-BR");
+      elBacklogDet.textContent =
+        agg.backlogNoPrazo.toLocaleString("pt-BR") +
+        " no prazo · " +
+        agg.backlogVencido.toLocaleString("pt-BR") +
+        " vencidas";
+      elPillBacklog.textContent =
+        (agg.pctBacklogVencido || 0).toFixed(1).replace(".", ",") +
+        "% do backlog vencido";
+
+      elSlaSplit.textContent =
+        agg.dentroSla.toLocaleString("pt-BR") +
+        " / " +
+        agg.foraSla.toLocaleString("pt-BR");
+      elSlaSplitDet.textContent =
+        (agg.pctDentroConcluidas || 0).toFixed(1).replace(".", ",") +
+        "% das concluídas dentro do SLA";
+
+      const textoSaude =
+        agg.pctDentroConcluidas >= 85
+          ? "Saúde do SLA · saudável"
+          : agg.pctDentroConcluidas >= 70
+          ? "Saúde do SLA · atenção"
+          : "Saúde do SLA · crítica";
+
+      elPillSlaSaude.textContent = textoSaude;
+
+      // NOVO: Média de Risco SLA
+      const riscoMedio = state.filtered.length
+        ? Math.round(state.filtered.reduce((acc, t) => acc + t.risco, 0) / state.filtered.length)
+        : 0;
+
+      const elRiscoMedio = document.getElementById("riscoMedio");
+      const elPillRisco = document.getElementById("pillRisco");
+
+      if (elRiscoMedio) {
+        elRiscoMedio.textContent = riscoMedio;
+      }
+
+      if (elPillRisco) {
+        if (riscoMedio >= 70) {
+          elPillRisco.textContent = "Alto risco";
+          elPillRisco.className = "pill danger";
+        } else if (riscoMedio >= 40) {
+          elPillRisco.textContent = "Risco moderado";
+          elPillRisco.className = "pill warning";
+        } else {
+          elPillRisco.textContent = "Risco baixo";
+          elPillRisco.className = "pill success";
+        }
+      }
+
+      chipsResumo[0].textContent = "Total: " + total.toLocaleString("pt-BR");
+      chipsResumo[1].textContent =
+        "Dentro do SLA: " +
+        agg.dentroSla.toLocaleString("pt-BR") +
+        " (" +
+        (agg.pctDentroConcluidas || 0).toFixed(1).replace(".", ",") +
+        "% das concl.)";
+      chipsResumo[2].textContent =
+        "Fora do SLA: " + agg.foraSla.toLocaleString("pt-BR");
+    }
+
+    // Plano de ação
+    function updateActionPlan() {
+      const tasks = state.filtered;
+      const list = document.getElementById("actionList");
+      const empty = document.getElementById("actionEmpty");
+
+      if (!tasks || tasks.length === 0) {
+        empty.style.display = "block";
+        list.innerHTML = "";
+        return;
+      }
+
+      empty.style.display = "none";
+      list.innerHTML = "";
+
+      const agg = computeAggregates(tasks);
+      const items = [];
+
+      // Filial com maior backlog vencido
+      if (agg.backlogVencido > 0) {
+        const mapFilial = {};
+        for (const t of tasks) {
+          if (t.backlogVencido) {
+            const key = t.filialExpedicao || "Sem filial de expedição";
+            mapFilial[key] = (mapFilial[key] || 0) + 1;
+          }
+        }
+        const arrFiliais = Object.entries(mapFilial).sort((a, b) => b[1] - a[1]);
+        if (arrFiliais.length > 0) {
+          const [topFilial, topCount] = arrFiliais[0];
+          const pctTop = (topCount / agg.backlogVencido) * 100;
+          items.push(
+            `Priorizar a limpeza do backlog vencido na filial <strong>${topFilial}</strong>, que concentra <strong>${topCount}</strong> de ${agg.backlogVencido} casos vencidos (` +
+            `${pctTop.toFixed(1).replace(".", ",")}% do backlog vencido).`
+          );
+        }
+      }
+
+      // Tipo de solicitação com pior SLA
+      const mapTipo = {};
+      for (const t of tasks) {
+        if (t.isConcluida && t.tipo) {
+          const key = t.tipo;
+          if (!mapTipo[key]) mapTipo[key] = { conc: 0, dentro: 0, fora: 0 };
+          mapTipo[key].conc++;
+          if (t.dentroSla) mapTipo[key].dentro++;
+          if (t.foraSla) mapTipo[key].fora++;
+        }
+      }
+
+      const tiposArr = Object.entries(mapTipo).map(([tipo, v]) => {
+        const pctDentro = v.conc > 0 ? (v.dentro / v.conc) * 100 : 0;
+        return { tipo, ...v, pctDentro };
+      }).sort((a, b) => a.pctDentro - b.pctDentro);
+
+      if (tiposArr.length > 0) {
+        const worst = tiposArr[0];
+        if (worst.conc >= 5 && worst.pctDentro < 85) {
+          items.push(
+            `Rever o fluxo de <strong>${worst.tipo}</strong>: apenas <strong>${worst.pctDentro.toFixed(1).replace(".", ",")}%</strong> ` +
+            `(${worst.dentro}/${worst.conc}) das solicitações concluídas desse tipo ficam dentro do SLA.`
+          );
+        }
+      }
+
+      // Saúde do backlog
+      if (agg.backlogTotal > 0 && agg.pctBacklogVencido > 0) {
+        if (agg.pctBacklogVencido >= 30) {
+          items.push(
+            `Endereçar capacidade das esteiras (Estoque / Setup / Transportes): <strong>${agg.pctBacklogVencido.toFixed(1).replace(".", ",")}%</strong> ` +
+            `do backlog já está vencido (${agg.backlogVencido}/${agg.backlogTotal}).`
+          );
+        } else if (agg.pctBacklogVencido >= 10) {
+          items.push(
+            `Monitorar de perto o backlog: <strong>${agg.pctBacklogVencido.toFixed(1).replace(".", ",")}%</strong> ` +
+            `dos casos em aberto já estão vencidos (${agg.backlogVencido}/${agg.backlogTotal}).`
+          );
+        }
+      }
+
+      if (items.length === 0) {
+        items.push(
+          `Manter o modelo atual: a maior parte das solicitações está sendo concluída dentro do SLA para o período e filtros selecionados. ` +
+          `Foque apenas em acompanhar a tendência da curva e os picos de backlog.`
+        );
+      }
+
+      for (const text of items) {
+        const li = document.createElement("li");
+        li.className = "action-item";
+        li.innerHTML = text;
+        list.appendChild(li);
+      }
+    }
+
+    function updateActionPlanIntelligent() {
+      const el = document.getElementById("actionPlanList");
+      if (!el) return;
+
+      const metrics = computeStageMetrics(state.filtered);
+      const plano = buildActionPlanIntelligent(metrics);
+
+      if (!plano || plano.length === 0) {
+        el.textContent = "Nenhuma recomendação disponível.";
+        return;
+      }
+
+      // Renderização em bullet points HTML
+      el.innerHTML = plano
+        .map(linha => `<div style="margin-bottom:4px;">${linha}</div>`)
+        .join("");
+    }
+
+    function renderBusinessAlerts() {
+      const card = document.getElementById("businessAlerts");
+      const list = document.getElementById("businessAlertsList");
+      if (!card || !list) return;
+
+      const alerts = computeBusinessAlerts(state.filtered);
+
+      if (alerts.length === 0) {
+        card.style.display = "none";
+        return;
+      }
+
+      card.style.display = "block";
+      list.innerHTML = alerts.map(a => `<li>${a}</li>`).join("");
+    }
+
+    function updateValidationBanner() {
+      const banner = document.getElementById("validationBanner");
+      const messages = document.getElementById("validationMessages");
+      if (!banner || !messages) return;
+
+      const { ok, missingColumns, warnings } = state.validation;
+
+      if (ok && warnings.length === 0) {
+        banner.style.display = "none";
+        return;
+      }
+
+      banner.style.display = "block";
+      let html = "";
+
+      if (missingColumns.length > 0) {
+        html += "<p style='margin:0 0 10px 0; font-weight:600;'>❌ Colunas essenciais não encontradas:</p>";
+        html += "<ul style='margin:0;'>";
+        missingColumns.forEach(col => {
+          html += `<li><strong>${col}</strong> - A análise não pode prosseguir sem esta coluna</li>`;
+        });
+        html += "</ul>";
+      }
+
+      if (warnings.length > 0) {
+        html += "<p style='margin:10px 0 10px 0; font-weight:600;'>⚠️ Avisos:</p>";
+        html += "<ul style='margin:0;'>";
+        warnings.forEach(w => {
+          html += `<li>${w}</li>`;
+        });
+        html += "</ul>";
+      }
+
+      messages.innerHTML = html;
+    }
+
+    function populateFilters() {
+      const selFilial = document.getElementById("filterFilial");
+      const selMes = document.getElementById("filterMes");
+
+      selFilial.innerHTML = '<option value="__ALL__">Todas as filiais</option>';
+      selMes.innerHTML = '<option value="__ALL__">Todos os meses</option>';
+
+      const tasks = state.tasks;
+
+      const filiais = Array.from(
+        new Set(
+          tasks
+            .map((t) => t.filialExpedicao)
+            .filter((v) => v && v.trim() !== "")
+        )
+      ).sort((a, b) => a.localeCompare(b, "pt-BR"));
+
+      for (const f of filiais) {
+        const opt = document.createElement("option");
+        opt.value = f;
+        opt.textContent = f;
+        selFilial.appendChild(opt);
+      }
+
+      const meses = Array.from(
+        new Set(tasks.map((t) => t.mesKey).filter(Boolean))
+      ).sort();
+
+      for (const m of meses) {
+        const opt = document.createElement("option");
+        opt.value = m;
+        opt.textContent = monthLabel(m);
+        selMes.appendChild(opt);
+      }
+    }
+
+    function updateUI() {
+      renderBusinessAlerts();  // NOVO: Alertas de operação
+      updateSummaryCards();
+      renderChartsMain();
+      renderDistribChart();
+      renderStageChart();   // NOVO: SLA por etapa
+      renderSlaTipoChart();  // NOVO: SLA por tipo
+      renderStageFilialHeatmap();  // NOVO: Heatmap Etapa × Filial
+      renderStageTrendChart();  // NOVO: Tendência Temporal por Etapa
+      
+      // NOVO: Renderizar distribuição por etapa conforme seleção
+      const stageDistribSelect = document.getElementById("stageDistribSelect");
+      if (stageDistribSelect) {
+        renderStageDistribChart(stageDistribSelect.value);
+      }
+      
+      renderAuditTable();
+      updateActionPlanIntelligent();  // NOVO: P.A.I.
+      updateActionPlan();
+    }
+
+    function initConfigPanel() {
+      const backdrop = document.getElementById("configBackdrop");
+      const btnOpen = document.getElementById("btnOpenConfig");
+      const btnClose = document.getElementById("btnCloseConfig");
+
+      btnOpen.addEventListener("click", () => backdrop.classList.add("open"));
+      btnClose.addEventListener("click", () => backdrop.classList.remove("open"));
+
+      backdrop.addEventListener("click", (e) => {
+        if (e.target === backdrop) backdrop.classList.remove("open");
+      });
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") backdrop.classList.remove("open");
+      });
+    }
+
+    function initFileInput() {
+      const fileInput = document.getElementById("fileInput");
+      const btnSelect = document.getElementById("btnSelectFile");
+      const fileStatus = document.getElementById("fileStatus");
+      const fileNamePill = document.getElementById("fileNamePill");
+      const fileNameText = document.getElementById("fileNameText");
+
+      btnSelect.addEventListener("click", () => fileInput.click());
+
+      fileInput.addEventListener("change", async (e) => {
+        const file = e.target.files && e.target.files[0];
+        if (!file) return;
+
+        fileStatus.innerHTML =
+          '<span class="status-dot-ok"></span> Lendo arquivo…';
+
+        try {
+          const wb = await loadWorkbook(file);
+          const tasks = parseTasksFromWorkbook(wb);
+          state.tasks = tasks;
+          state.filters.filial = "__ALL__";
+          state.filters.mes = "__ALL__";
+          
+          updateValidationBanner();  // NOVO: validar planilha
+          
+          populateFilters();
+          applyFilters();
+
+          fileStatus.innerHTML =
+            '<span class="status-dot-ok"></span> Planilha carregada · ' +
+            tasks.length.toLocaleString("pt-BR") +
+            " linhas válidas.";
+          fileNameText.textContent = file.name;
+          fileNamePill.style.display = "inline-block";
+        } catch (err) {
+          console.error(err);
+          fileStatus.innerHTML =
+            '<span class="status-dot-warn"></span> Erro ao ler arquivo. Verifique se é um XLSX válido.';
+          fileNamePill.style.display = "none";
+        }
+      });
+    }
+
+    function initFilters() {
+      const selFilial = document.getElementById("filterFilial");
+      const selMes = document.getElementById("filterMes");
+
+      selFilial.addEventListener("change", (e) => {
+        state.filters.filial = e.target.value;
+        applyFilters();
+      });
+
+      selMes.addEventListener("change", (e) => {
+        state.filters.mes = e.target.value;
+        applyFilters();
+      });
+
+      // Busca na tabela auditável
+      const searchInput = document.getElementById("auditSearch");
+      if (searchInput) {
+        searchInput.addEventListener("input", (e) => {
+          state.auditSearchTerm = e.target.value;
+          renderAuditTable();
+        });
+      }
+
+      // NOVO: Select de etapa para distribuição
+      const stageDistribSelect = document.getElementById("stageDistribSelect");
+      if (stageDistribSelect) {
+        stageDistribSelect.addEventListener("change", (e) => {
+          renderStageDistribChart(e.target.value);
+        });
+      }
+    }
+
+    // Exportar tabela auditável para XLSX
+    // Exportar para XLSX multi-aba
+    function exportAuditToExcel() {
+      if (!state.filtered || state.filtered.length === 0) {
+        alert("Nenhum dado filtrado para exportar.");
+        return;
+      }
+
+      const wb = XLSX.utils.book_new();
+
+      // ABA 1: Audit (tabela completa)
+      const rowsAudit = [];
+      rowsAudit.push([
+        "Task ID",
+        "Nome",
+        "Status",
+        "Tipo Solicitação",
+        "Status Estoque",
+        "Status Transportes",
+        "Tipo de Frete",
+        "Data Retirada",
+        "Filial Expedição",
+        "Filial Operação",
+        "Data Criada",
+        "Due Date",
+        "Data Conclusão Final",
+        "Risco SLA",
+        "Classificação SLA",
+        "Dias promessa",
+        "Dias reais"
+      ]);
+
+      for (const t of state.filtered) {
+        let classif = "";
+        if (t.isConcluida) {
+          if (t.dentroSla) classif = "Concluído · dentro do SLA";
+          else if (t.foraSla) classif = "Concluído · fora do SLA";
+          else classif = "Concluído · sem due date";
+        } else {
+          if (t.backlogNoPrazo) classif = "Backlog · no prazo";
+          else if (t.backlogVencido) classif = "Backlog · vencido";
+          else classif = "Backlog · sem due date";
+        }
+
+        rowsAudit.push([
+          t.taskId,
+          t.taskName,
+          t.status,
+          t.tipo,
+          t.statusEstoque,
+          t.statusTransp,
+          t.tipoFrete,
+          formatDate(t.dataRetirada) || "",
+          t.filialExpedicao || "",
+          t.filialOperacao || "",
+          formatDate(t.dateCreated) || "",
+          formatDate(t.dueDate) || "",
+          formatDate(t.finalDate) || "",
+          t.risco || 0,
+          classif,
+          t.slaDias != null ? t.slaDias : "",
+          t.diasReais != null ? t.diasReais : ""
+        ]);
+      }
+      const wsAudit = XLSX.utils.aoa_to_sheet(rowsAudit);
+      XLSX.utils.book_append_sheet(wb, wsAudit, "Audit");
+
+      // ABA 2: SLA por Tipo
+      const tipoMap = computeSlaByTipo(state.filtered);
+      const rowsTipo = [];
+      rowsTipo.push(["Tipo", "Dentro SLA", "Fora SLA", "Total", "% Dentro"]);
+      
+      Object.keys(tipoMap).forEach(tipo => {
+        const d = tipoMap[tipo];
+        const pctDentro = d.total > 0 ? ((d.dentro / d.total) * 100).toFixed(1) : "0";
+        rowsTipo.push([tipo, d.dentro, d.fora, d.total, pctDentro + "%"]);
+      });
+      
+      const wsTipo = XLSX.utils.aoa_to_sheet(rowsTipo);
+      XLSX.utils.book_append_sheet(wb, wsTipo, "SLA_Tipos");
+
+      // ABA 3: SLA por Etapa
+      const stageMetrics = computeStageMetrics(state.filtered);
+      const rowsStage = [];
+      rowsStage.push(["Etapa", "Dentro", "Fora", "Total", "% Fora"]);
+      
+      ["estoque", "setup", "transp"].forEach(key => {
+        const label = key === "estoque" ? "Estoque" : key === "setup" ? "Setup" : "Transportes";
+        const d = stageMetrics[key];
+        const total = d.dentro + d.fora;
+        const pctFora = total > 0 ? ((d.fora / total) * 100).toFixed(1) : "0";
+        rowsStage.push([label, d.dentro, d.fora, total, pctFora + "%"]);
+      });
+      
+      const wsStage = XLSX.utils.aoa_to_sheet(rowsStage);
+      XLSX.utils.book_append_sheet(wb, wsStage, "Etapas");
+
+      // ABA 4: Heatmap Etapa × Filial
+      const filialMap = computeStageByFilial(state.filtered);
+      const rowsHeatmap = [];
+      rowsHeatmap.push(["Filial", "Estoque % Fora", "Setup % Fora", "Transportes % Fora"]);
+      
+      Object.keys(filialMap).sort().forEach(filial => {
+        const data = filialMap[filial];
+        const estTotal = data.estoque.dentro + data.estoque.fora;
+        const setupTotal = data.setup.dentro + data.setup.fora;
+        const transpTotal = data.transp.dentro + data.transp.fora;
+        
+        const estPct = estTotal > 0 ? ((data.estoque.fora / estTotal) * 100).toFixed(1) + "%" : "-";
+        const setupPct = setupTotal > 0 ? ((data.setup.fora / setupTotal) * 100).toFixed(1) + "%" : "-";
+        const transpPct = transpTotal > 0 ? ((data.transp.fora / transpTotal) * 100).toFixed(1) + "%" : "-";
+        
+        rowsHeatmap.push([filial, estPct, setupPct, transpPct]);
+      });
+      
+      const wsHeatmap = XLSX.utils.aoa_to_sheet(rowsHeatmap);
+      XLSX.utils.book_append_sheet(wb, wsHeatmap, "Heatmap");
+
+      // Baixar arquivo
+      XLSX.writeFile(wb, "sla-logistica-completo.xlsx");
+    }
+
+    document.addEventListener("click", function(e) {
+      if (e.target && e.target.id === "btnExportExcel") {
+        exportAuditToExcel();
+      }
+    });
+
+    window.addEventListener("DOMContentLoaded", () => {
+      initConfigPanel();
+      initFileInput();
+      initFilters();
+      
+      // Modo Apresentação
+      const btnPresentation = document.getElementById("btnPresentationMode");
+      if (btnPresentation) {
+        btnPresentation.addEventListener("click", () => {
+          document.body.classList.toggle("presentation-mode");
+          const isActive = document.body.classList.contains("presentation-mode");
+          btnPresentation.innerHTML = isActive 
+            ? '<span class="icon">📊</span> Modo Normal'
+            : '<span class="icon">🧑‍💼</span> Modo Apresentação';
+        });
+      }
+
+      // Inicializar botões do modal de distribuição
+      const btnCloseDistrib = document.getElementById("btnCloseSlaDistribModal");
+      const modalBackdrop = document.getElementById("slaDistribModal");
+      const btnExportDistrib = document.getElementById("btnExportSlaDistribDay");
+
+      if (btnCloseDistrib && modalBackdrop) {
+        btnCloseDistrib.addEventListener("click", closeSlaDistribModal);
+        modalBackdrop.addEventListener("click", (e) => {
+          if (e.target === modalBackdrop) closeSlaDistribModal();
+        });
+      }
+
+      if (btnExportDistrib) {
+        btnExportDistrib.addEventListener("click", exportSlaDistribDayToExcel);
+      }
+
+      // Modal SLA por etapa
+      const slaEtapaBackdrop = document.getElementById("slaEtapaModal");
+      const btnCloseSlaEtapa = document.getElementById("btnCloseSlaEtapaModal");
+      const btnExportSlaEtapa = document.getElementById("btnExportSlaEtapaBucket");
+
+      if (slaEtapaBackdrop) {
+        slaEtapaBackdrop.addEventListener("click", (e) => {
+          if (e.target === slaEtapaBackdrop) {
+            closeSlaEtapaModal();
+          }
+        });
+      }
+
+      if (btnCloseSlaEtapa) {
+        btnCloseSlaEtapa.addEventListener("click", closeSlaEtapaModal);
+      }
+
+      if (btnExportSlaEtapa) {
+        btnExportSlaEtapa.addEventListener("click", exportSlaEtapaBucketToExcel);
+      }
+    });
+  </script>
+</body>
+</html>
